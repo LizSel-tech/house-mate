@@ -35,7 +35,7 @@ const AppImage = memo(function AppImage({
     fill = false,
     sizes,
     onClick,
-    fallbackSrc = '/assets/images/no_image.png',
+    fallbackSrc = '/assets/images/no_image.svg',
     loading = 'lazy',
     unoptimized = false,
     ...props
@@ -45,7 +45,8 @@ const AppImage = memo(function AppImage({
     const [hasError, setHasError] = useState(false);
 
     const isExternalUrl = useMemo(() => typeof imageSrc === 'string' && imageSrc.startsWith('http'), [imageSrc]);
-    const resolvedUnoptimized = unoptimized || isExternalUrl;
+    const isSvg = useMemo(() => typeof imageSrc === 'string' && imageSrc.endsWith('.svg'), [imageSrc]);
+    const resolvedUnoptimized = unoptimized || isExternalUrl || isSvg;
 
     const handleError = useCallback(() => {
         if (!hasError && imageSrc !== fallbackSrc) {

@@ -53,23 +53,23 @@ export default function CredibilitySection() {
   }, []);
 
   return (
-    <section id="about" ref={sectionRef} className="bg-secondary py-20 px-6 md:px-12 lg:px-20">
+    <section id="about" ref={sectionRef} className="bg-secondary py-12 sm:py-20 px-5 sm:px-6 md:px-12 lg:px-20">
       <div className="max-w-7xl mx-auto">
 
         {/* Stats Row */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-5 mb-16 reveal">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-5 mb-12 sm:mb-16 reveal">
           {stats.map((stat, i) => (
             <div
               key={stat.label}
-              className="bg-white/5 border border-white/10 rounded-4xl p-6 flex flex-col items-start gap-3 hover:border-primary/40 transition-colors duration-300"
+              className="bg-white/5 border border-white/10 rounded-3xl sm:rounded-4xl p-4 sm:p-6 flex flex-col items-start gap-2 sm:gap-3 hover:border-primary/40 transition-colors duration-300"
               style={{ transitionDelay: `${i * 80}ms` }}
             >
-              <div className="w-10 h-10 rounded-2xl bg-primary/20 flex items-center justify-center text-primary">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-primary/20 flex items-center justify-center text-primary">
                 <Icon name={stat.icon as any} size={20} />
               </div>
               <div>
-                <p className="text-3xl font-extrabold text-white">{stat.value}</p>
-                <p className="text-xs font-bold uppercase tracking-widest text-white/40 mt-0.5">{stat.label}</p>
+                <p className="text-2xl sm:text-3xl font-extrabold text-white">{stat.value}</p>
+                <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider sm:tracking-widest text-white/40 mt-0.5 leading-tight">{stat.label}</p>
               </div>
             </div>
           ))}
@@ -93,7 +93,7 @@ export default function CredibilitySection() {
               key={t.name}
               className={`reveal ${i === 1 ? 'reveal-delay-200' : i === 2 ? 'reveal-delay-400' : ''} card-glow`}
             >
-              <div className="bg-white/5 border border-white/10 rounded-4xl p-8 flex flex-col justify-between min-h-[280px] hover:border-primary/30 transition-colors duration-300 h-full">
+              <div className="bg-white/5 border border-white/10 rounded-4xl p-6 sm:p-8 flex flex-col justify-between min-h-[240px] sm:min-h-[280px] hover:border-primary/30 transition-colors duration-300 h-full">
                 {/* Quote icon */}
                 <div className="mb-5">
                   <Icon name="ChatBubbleLeftEllipsisIcon" size={28} className="text-primary/60" />

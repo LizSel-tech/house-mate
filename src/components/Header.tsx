@@ -41,7 +41,7 @@ export default function Header() {
             ? 'bg-secondary/90 backdrop-blur-xl border-b border-white/10 py-3' :'bg-transparent py-5'
         }`}
       >
-        <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-5 sm:px-6 flex items-center justify-between">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2.5 group">
             <AppLogo
@@ -66,13 +66,21 @@ export default function Header() {
             ))}
           </nav>
 
-          {/* CTA */}
-          <a
-            href="#contact"
-            className="hidden md:flex items-center gap-2 bg-primary text-primary-foreground px-5 py-2.5 rounded-full text-xs font-bold uppercase tracking-widest hover:bg-accent transition-colors duration-200"
-          >
-            Get a Free Quote
-          </a>
+          {/* Desktop actions */}
+          <div className="hidden md:flex items-center gap-3">
+            <Link
+              href="/login"
+              className="text-xs font-bold uppercase tracking-widest text-white/70 hover:text-white transition-colors duration-200 px-3 py-2"
+            >
+              Log in
+            </Link>
+            <Link
+              href="/signup"
+              className="flex items-center gap-2 bg-primary text-primary-foreground px-5 py-2.5 rounded-full text-xs font-bold uppercase tracking-widest hover:bg-accent transition-colors duration-200"
+            >
+              Get started
+            </Link>
+          </div>
 
           {/* Mobile Hamburger */}
           <button
@@ -100,13 +108,20 @@ export default function Header() {
               {link?.label}
             </a>
           ))}
-          <a
-            href="#contact"
+          <Link
+            href="/login"
+            onClick={handleNavClick}
+            className="text-2xl font-bold text-white/80 hover:text-white transition-colors uppercase tracking-widest"
+          >
+            Log in
+          </Link>
+          <Link
+            href="/signup"
             onClick={handleNavClick}
             className="mt-4 bg-primary text-primary-foreground px-8 py-4 rounded-full text-sm font-bold uppercase tracking-widest hover:bg-accent transition-colors"
           >
-            Get a Free Quote
-          </a>
+            Get started
+          </Link>
         </div>
       )}
     </>

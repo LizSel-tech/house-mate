@@ -62,7 +62,7 @@ export default function ContactSection() {
   };
 
   return (
-    <section id="contact" ref={sectionRef} className="bg-background pt-16 pb-20 px-6 md:px-12 lg:px-20">
+    <section id="contact" ref={sectionRef} className="bg-background pt-12 pb-16 sm:pt-16 sm:pb-20 px-5 sm:px-6 md:px-12 lg:px-20">
       <div className="max-w-7xl mx-auto">
 
         {/* Section Header */}
@@ -80,7 +80,7 @@ export default function ContactSection() {
 
           {/* Left: Form — 3 cols */}
           <div className="lg:col-span-3 reveal reveal-delay-100">
-            <div className="bg-card border border-border rounded-4xl p-8 md:p-10">
+            <div className="bg-card border border-border rounded-4xl p-5 sm:p-8 md:p-10">
               {submitted ? (
                 <div className="flex flex-col items-center justify-center py-16 gap-5 text-center">
                   <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center text-primary">
@@ -183,7 +183,7 @@ export default function ContactSection() {
 
                   <button
                     type="submit"
-                    className="group flex items-center justify-center gap-3 bg-primary text-primary-foreground px-8 py-4 rounded-full font-bold text-sm uppercase tracking-widest hover:bg-accent transition-colors duration-300 w-full sm:w-auto"
+                    className="group flex items-center justify-center gap-3 bg-primary text-primary-foreground px-8 py-4 rounded-full font-bold text-sm uppercase tracking-widest hover:bg-accent transition-colors duration-300 w-full sm:w-auto min-h-[48px]"
                   >
                     Send My Request
                     <Icon name="ArrowRightIcon" size={16} className="transition-transform duration-300 group-hover:translate-x-1" />

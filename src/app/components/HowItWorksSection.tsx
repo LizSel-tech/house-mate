@@ -46,7 +46,7 @@ export default function HowItWorksSection() {
   }, []);
 
   return (
-    <section id="how-it-works" ref={sectionRef} className="bg-background pt-16 pb-20 px-6 md:px-12 lg:px-20">
+    <section id="how-it-works" ref={sectionRef} className="bg-background pt-12 pb-16 sm:pt-16 sm:pb-20 px-5 sm:px-6 md:px-12 lg:px-20">
       <div className="max-w-7xl mx-auto">
 
         {/* Asymmetric layout: 60/40 */}
@@ -73,7 +73,7 @@ export default function HowItWorksSection() {
                 key={step.number}
                 className={`reveal ${i === 1 ? 'reveal-delay-200' : i === 2 ? 'reveal-delay-400' : ''} card-glow`}>
                 
-                  <div className="bg-card border border-border rounded-4xl p-7 flex gap-5 items-start hover:border-primary/40 transition-colors duration-300">
+                  <div className="bg-card border border-border rounded-4xl p-5 sm:p-7 flex gap-4 sm:gap-5 items-start hover:border-primary/40 transition-colors duration-300">
                     <div className="shrink-0">
                       <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
                         <Icon name={step.icon as any} size={22} />

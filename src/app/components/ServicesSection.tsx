@@ -97,11 +97,11 @@ export default function ServicesSection() {
   }, []);
 
   return (
-    <section id="services" ref={sectionRef} className="bg-background py-20 px-6 md:px-12 lg:px-20">
+    <section id="services" ref={sectionRef} className="bg-background py-12 sm:py-20 px-5 sm:px-6 md:px-12 lg:px-20">
       <div className="max-w-7xl mx-auto">
 
         {/* Section Header */}
-        <div className="flex flex-col md:flex-row justify-between items-end mb-14 gap-6 reveal">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-10 sm:mb-14 gap-4 sm:gap-6 reveal">
           <div>
             <span className="inline-block px-4 py-1.5 rounded-full border border-border text-xs font-bold uppercase tracking-widest text-muted-foreground mb-5">
               What We Fix
@@ -129,7 +129,7 @@ export default function ServicesSection() {
           {/* Card: Plumbing — col-span-3, with image */}
           {/* col-1–3 */}
           <div className={`lg:col-span-3 reveal card-glow`}>
-            <div className="relative bg-secondary rounded-4xl overflow-hidden min-h-[280px] group border border-white/5 flex flex-col justify-between p-8">
+            <div className="relative bg-secondary rounded-4xl overflow-hidden min-h-[240px] sm:min-h-[280px] group border border-white/5 flex flex-col justify-between p-6 sm:p-8">
               <AppImage
                 src={services[0].image!}
                 alt={services[0].imageAlt}
@@ -149,7 +149,7 @@ export default function ServicesSection() {
                 }
               </div>
               <div className="relative z-10">
-                <h3 className="text-2xl font-bold text-white mb-2">{services[0].title}</h3>
+                <h3 className="text-xl sm:text-2xl font-bold text-white mb-2">{services[0].title}</h3>
                 <p className="text-white/65 text-sm leading-relaxed">{services[0].description}</p>
               </div>
             </div>
@@ -158,7 +158,7 @@ export default function ServicesSection() {
           {/* Card: Electrical — col-span-3, with image */}
           {/* col-4–6 */}
           <div className={`lg:col-span-3 reveal reveal-delay-100 card-glow`}>
-            <div className="relative bg-secondary rounded-4xl overflow-hidden min-h-[280px] group border border-white/5 flex flex-col justify-between p-8">
+            <div className="relative bg-secondary rounded-4xl overflow-hidden min-h-[240px] sm:min-h-[280px] group border border-white/5 flex flex-col justify-between p-6 sm:p-8">
               <AppImage
                 src={services[1].image!}
                 alt={services[1].imageAlt}
@@ -178,7 +178,7 @@ export default function ServicesSection() {
                 }
               </div>
               <div className="relative z-10">
-                <h3 className="text-2xl font-bold text-white mb-2">{services[1].title}</h3>
+                <h3 className="text-xl sm:text-2xl font-bold text-white mb-2">{services[1].title}</h3>
                 <p className="text-white/65 text-sm leading-relaxed">{services[1].description}</p>
               </div>
             </div>
@@ -187,7 +187,7 @@ export default function ServicesSection() {
           {/* Card: Carpentry — col-span-2 */}
           {/* col-1–2 */}
           <div className={`lg:col-span-2 reveal reveal-delay-200 card-glow`}>
-            <div className="bg-card border border-border rounded-4xl p-7 min-h-[200px] flex flex-col justify-between hover:border-primary/40 transition-colors duration-300 h-full">
+            <div className="bg-card border border-border rounded-4xl p-5 sm:p-7 min-h-[180px] sm:min-h-[200px] flex flex-col justify-between hover:border-primary/40 transition-colors duration-300 h-full">
               <div className="w-11 h-11 rounded-2xl bg-primary/10 flex items-center justify-center text-primary mb-5">
                 <Icon name={services[2].icon as any} size={22} />
               </div>
@@ -201,7 +201,7 @@ export default function ServicesSection() {
           {/* Card: Painting — col-span-2 */}
           {/* col-3–4 */}
           <div className={`lg:col-span-2 reveal reveal-delay-300 card-glow`}>
-            <div className="bg-card border border-border rounded-4xl p-7 min-h-[200px] flex flex-col justify-between hover:border-primary/40 transition-colors duration-300 h-full">
+            <div className="bg-card border border-border rounded-4xl p-5 sm:p-7 min-h-[180px] sm:min-h-[200px] flex flex-col justify-between hover:border-primary/40 transition-colors duration-300 h-full">
               <div className="w-11 h-11 rounded-2xl bg-primary/10 flex items-center justify-center text-primary mb-5">
                 <Icon name={services[3].icon as any} size={22} />
               </div>
@@ -215,7 +215,7 @@ export default function ServicesSection() {
           {/* Card: Flooring — col-span-2 */}
           {/* col-5–6 */}
           <div className={`lg:col-span-2 reveal reveal-delay-400 card-glow`}>
-            <div className="bg-card border border-border rounded-4xl p-7 min-h-[200px] flex flex-col justify-between hover:border-primary/40 transition-colors duration-300 h-full">
+            <div className="bg-card border border-border rounded-4xl p-5 sm:p-7 min-h-[180px] sm:min-h-[200px] flex flex-col justify-between hover:border-primary/40 transition-colors duration-300 h-full">
               <div className="w-11 h-11 rounded-2xl bg-primary/10 flex items-center justify-center text-primary mb-5">
                 <Icon name={services[4].icon as any} size={22} />
               </div>
@@ -229,14 +229,14 @@ export default function ServicesSection() {
           {/* Card: General Repairs — col-span-6, full width */}
           {/* col-1–6 */}
           <div className={`lg:col-span-6 reveal reveal-delay-200 card-glow`}>
-            <div className="bg-secondary rounded-4xl p-8 md:p-10 border border-white/5 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 hover:border-primary/30 transition-colors duration-300">
-              <div className="flex items-start gap-5">
+            <div className="bg-secondary rounded-4xl p-6 sm:p-8 md:p-10 border border-white/5 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 hover:border-primary/30 transition-colors duration-300">
+              <div className="flex items-start gap-4 sm:gap-5">
                 <div className="w-12 h-12 rounded-2xl bg-primary/20 flex items-center justify-center text-primary shrink-0">
                   <Icon name={services[5].icon as any} size={24} />
                 </div>
                 <div>
-                  <div className="flex items-center gap-3 mb-2">
-                    <h3 className="text-xl font-bold text-white">{services[5].title}</h3>
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-2">
+                    <h3 className="text-lg sm:text-xl font-bold text-white">{services[5].title}</h3>
                     <span className="px-3 py-0.5 bg-primary/20 text-primary text-xs font-bold uppercase tracking-widest rounded-full">
                       {services[5].tag}
                     </span>
@@ -246,7 +246,7 @@ export default function ServicesSection() {
               </div>
               <a
                 href="#contact"
-                className="shrink-0 group flex items-center gap-3 bg-primary text-primary-foreground pl-6 pr-2 py-2.5 rounded-full text-xs font-bold uppercase tracking-widest hover:bg-accent transition-colors duration-300">
+                className="shrink-0 w-full md:w-auto group flex items-center justify-between md:justify-start gap-3 bg-primary text-primary-foreground pl-6 pr-2 py-2.5 rounded-full text-xs font-bold uppercase tracking-widest hover:bg-accent transition-colors duration-300 min-h-[44px]">
                 
                 Get a Quote
                 <span className="bg-secondary text-white p-2 rounded-full transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5">

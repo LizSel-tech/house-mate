@@ -13,8 +13,8 @@ interface AppLogoProps {
 }
 
 const AppLogo = memo(function AppLogo({
-  src = '/assets/images/app_logo.png',
-  iconName = 'SparklesIcon',
+  src = '/assets/images/app_logo.svg',
+  iconName = 'WrenchScrewdriverIcon',
   size = 64,
   className = '',
   onClick,
