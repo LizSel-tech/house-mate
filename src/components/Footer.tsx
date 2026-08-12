@@ -10,7 +10,7 @@ export default function Footer() {
         <Link href="/" className="flex items-center gap-2.5">
           <AppLogo size={32} />
           <span className="font-display text-base font-bold text-foreground tracking-tight">
-            HandyPro
+            Fixora
           </span>
         </Link>
 
@@ -50,7 +50,7 @@ export default function Footer() {
 
         {/* Copyright */}
         <p className="text-sm font-medium text-muted-foreground whitespace-nowrap">
-          © 2026 HandyPro
+          © 2026 Fixora
         </p>
       </div>
     </footer>

@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { FormEvent, Suspense, useState } from 'react';
 import AuthShell from '@/components/auth/AuthShell';
-import { DEMO_OTP, PORTAL_HOME } from '@/lib/auth/constants';
+import { PORTAL_HOME } from '@/lib/auth/constants';
 import type { UserRole } from '@/types/auth';
 
 function LoginForm() {
@@ -15,18 +15,33 @@ function LoginForm() {
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
   const [otpSent, setOtpSent] = useState(false);
+  const [devCode, setDevCode] = useState('');
   const [demoAdmin, setDemoAdmin] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const sendOtp = (e: FormEvent) => {
+  const sendOtp = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
-    if (!phone.trim()) {
-      setError('Enter your phone number.');
-      return;
+    setLoading(true);
+    try {
+      const res = await fetch('/api/auth/otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone, purpose: 'login' }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || 'Unable to send OTP.');
+        return;
+      }
+      setDevCode(data.devCode || '');
+      setOtpSent(true);
+    } catch {
+      setError('Something went wrong. Please try again.');
+    } finally {
+      setLoading(false);
     }
-    setOtpSent(true);
   };
 
   const handleLogin = async (e: FormEvent) => {
@@ -61,7 +76,7 @@ function LoginForm() {
   return (
     <AuthShell
       title="Welcome back"
-      subtitle="One login for users, artisans, and admins. We’ll send you to the right portal."
+      subtitle="Log in after your signup payment is confirmed. We’ll send you to the right portal."
     >
       {!otpSent ? (
         <form onSubmit={sendOtp} className="flex flex-col gap-5">
@@ -92,18 +107,31 @@ function LoginForm() {
             </span>
           </label>
 
+          {error && (
+            <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl px-4 py-3">
+              {error}
+            </p>
+          )}
+
           <button
             type="submit"
-            className="w-full bg-primary text-primary-foreground py-3.5 rounded-full font-bold text-sm uppercase tracking-widest hover:bg-accent transition-colors min-h-[48px]"
+            disabled={loading}
+            className="w-full bg-primary text-primary-foreground py-3.5 rounded-full font-bold text-sm uppercase tracking-widest hover:bg-accent transition-colors min-h-[48px] disabled:opacity-60"
           >
-            Send OTP
+            {loading ? 'Sending…' : 'Send OTP'}
           </button>
         </form>
       ) : (
         <form onSubmit={handleLogin} className="flex flex-col gap-5">
           <p className="text-sm text-muted-foreground">
-            Code sent to <span className="font-semibold text-foreground">{phone}</span>. Demo OTP:{' '}
-            <span className="font-mono font-semibold text-foreground">{DEMO_OTP}</span>
+            Code sent to <span className="font-semibold text-foreground">{phone}</span>.
+            {devCode ? (
+              <>
+                {' '}
+                Dev OTP:{' '}
+                <span className="font-mono font-semibold text-foreground">{devCode}</span>
+              </>
+            ) : null}
           </p>
 
           <div className="flex flex-col gap-2">
@@ -116,7 +144,7 @@ function LoginForm() {
               inputMode="numeric"
               value={otp}
               onChange={(e) => setOtp(e.target.value)}
-              placeholder="123456"
+              placeholder="6-digit code"
               className="w-full px-4 py-3 rounded-2xl border border-border bg-background text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring tracking-widest"
               required
             />
@@ -141,6 +169,7 @@ function LoginForm() {
             onClick={() => {
               setOtpSent(false);
               setOtp('');
+              setDevCode('');
               setError('');
             }}
             className="text-sm font-medium text-muted-foreground hover:text-foreground"

@@ -38,7 +38,7 @@ export default function Header() {
       <header
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
           scrolled
-            ? 'bg-secondary/90 backdrop-blur-xl border-b border-white/10 py-3' :'bg-transparent py-5'
+            ? 'bg-secondary border-b border-white/10 py-3' :'bg-transparent py-5'
         }`}
       >
         <div className="max-w-7xl mx-auto px-5 sm:px-6 flex items-center justify-between">
@@ -49,7 +49,7 @@ export default function Header() {
               className="transition-transform duration-300 group-hover:scale-105"
             />
             <span className="font-display text-xl font-bold text-white tracking-tight hidden sm:block">
-              HandyPro
+              Fixora
             </span>
           </Link>
 
@@ -95,7 +95,7 @@ export default function Header() {
       {/* Mobile Menu Overlay */}
       {menuOpen && (
         <div
-          className="fixed inset-0 z-40 bg-secondary/95 backdrop-blur-xl flex flex-col items-center justify-center gap-8 md:hidden"
+          className="fixed inset-0 z-[60] bg-secondary text-secondary-foreground flex flex-col items-center justify-center gap-8 md:hidden"
           onClick={handleNavClick}
         >
           {navLinks?.map((link) => (
@@ -103,7 +103,7 @@ export default function Header() {
               key={link?.label}
               href={link?.href}
               onClick={handleNavClick}
-              className="text-2xl font-bold text-white/80 hover:text-white transition-colors uppercase tracking-widest"
+              className="text-2xl font-bold text-secondary-foreground hover:text-white transition-colors uppercase tracking-widest"
             >
               {link?.label}
             </a>
@@ -111,7 +111,7 @@ export default function Header() {
           <Link
             href="/login"
             onClick={handleNavClick}
-            className="text-2xl font-bold text-white/80 hover:text-white transition-colors uppercase tracking-widest"
+            className="text-2xl font-bold text-secondary-foreground hover:text-white transition-colors uppercase tracking-widest"
           >
             Log in
           </Link>

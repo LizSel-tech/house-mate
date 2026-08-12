@@ -16,6 +16,8 @@ out
 .env
 .env.local
 .env*.local
+public/uploads
+tsconfig.tsbuildinfo
 
 # Editor directories and files
 .vscode/*

@@ -4,6 +4,8 @@ import { getSession } from '@/lib/auth/session';
 
 const navItems: PortalNavItem[] = [
   { href: '/admin', label: 'Dashboard', icon: 'HomeIcon' },
+  { href: '/admin/payments', label: 'Payments', icon: 'BanknotesIcon' },
+  { href: '/admin/notifications', label: 'Notifications', icon: 'BellAlertIcon' },
   { href: '/admin/verifications', label: 'Verifications', icon: 'ShieldCheckIcon' },
   { href: '/admin/bookings', label: 'Bookings', icon: 'CalendarDaysIcon' },
   { href: '/admin/users', label: 'Users', icon: 'UsersIcon' },

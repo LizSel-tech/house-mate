@@ -25,6 +25,3 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   artisan: 'Service Provider',
   admin: 'Admin',
 };
-
-/** Demo OTP accepted until SMS provider is wired */
-export const DEMO_OTP = '123456';

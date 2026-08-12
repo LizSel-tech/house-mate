@@ -88,7 +88,7 @@ export default function ContactSection() {
                   </div>
                   <h3 className="text-2xl font-bold text-foreground">Message Received!</h3>
                   <p className="text-muted-foreground max-w-sm leading-relaxed">
-                    Thanks for reaching out. HandyPro will call or text you back within the hour during business hours.
+                    Thanks for reaching out. Fixora will call or text you back within the hour during business hours.
                   </p>
                   <button
                     onClick={() => setSubmitted(false)}

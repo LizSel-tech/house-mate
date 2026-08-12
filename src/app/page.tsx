@@ -8,8 +8,9 @@ import HowItWorksSection from './components/HowItWorksSection';
 import ContactSection from './components/ContactSection';
 
 export const metadata: Metadata = {
-  title: 'HandyPro — Trusted Local Handyman Services',
-  description: 'HandyPro delivers reliable handyman services to local homeowners — from plumbing and carpentry to painting and repairs, all in one call.',
+  title: 'Fixora — Verified artisans across Ghana',
+  description:
+    'Fixora connects households with verified artisans — book jobs, pay into escrow, and confirm when work is done.',
 };
 
 export default function HomePage() {

@@ -20,7 +20,7 @@ const steps = [
 {
   number: '03',
   title: 'We Show Up & Fix It',
-  description: 'Your HandyPro arrives on time, does the work right, cleans up completely, and follows up to make sure you\'re happy.',
+  description: 'Your Fixora pro arrives on time, does the work right, cleans up completely, and follows up to make sure you\'re happy.',
   icon: 'CheckBadgeIcon'
 }];
 

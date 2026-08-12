@@ -70,7 +70,7 @@ export default function PortalShell({
           <Link href="/" className="flex items-center gap-2.5">
             <AppLogo size={32} />
             <div>
-              <p className="font-bold tracking-tight">The Handyman</p>
+              <p className="font-bold tracking-tight">Fixora</p>
               <p className="text-[10px] uppercase tracking-widest text-white/40 mt-0.5">
                 {title}
               </p>
@@ -131,14 +131,14 @@ export default function PortalShell({
       </div>
 
       {menuOpen && (
-        <div className="md:hidden fixed inset-0 z-50 bg-secondary/95 backdrop-blur-xl p-6 flex flex-col">
+        <div className="md:hidden fixed inset-0 z-50 bg-secondary text-secondary-foreground p-6 flex flex-col">
           <div className="flex justify-between items-center mb-8">
-            <p className="font-bold text-white">{title}</p>
+            <p className="font-bold text-secondary-foreground">{title}</p>
             <button
               type="button"
               aria-label="Close menu"
               onClick={() => setMenuOpen(false)}
-              className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white"
+              className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-secondary-foreground"
             >
               <Icon name="XMarkIcon" size={20} />
             </button>
@@ -149,9 +149,9 @@ export default function PortalShell({
                 key={item.href}
                 href={item.href}
                 onClick={() => setMenuOpen(false)}
-                className="flex items-center gap-3 px-4 py-3 rounded-xl text-white/80 hover:bg-white/5 font-medium"
+                className="flex items-center gap-3 px-4 py-3 rounded-xl text-secondary-foreground/90 hover:bg-white/10 hover:text-secondary-foreground font-medium"
               >
-                <Icon name={item.icon} size={20} />
+                <Icon name={item.icon} size={20} className="text-secondary-foreground" />
                 {item.label}
               </Link>
             ))}
@@ -159,14 +159,14 @@ export default function PortalShell({
           <button
             type="button"
             onClick={openLogoutConfirm}
-            className="text-left text-sm font-bold uppercase tracking-widest text-white/50 py-4"
+            className="text-left text-sm font-bold uppercase tracking-widest text-secondary-foreground/70 py-4"
           >
             Sign out
           </button>
         </div>
       )}
 
-      <main className="flex-1 min-w-0">
+      <main className="flex-1 min-w-0 bg-[radial-gradient(ellipse_at_top,_rgba(217,119,6,0.06),_transparent_55%)]">
         <div className="max-w-5xl mx-auto px-5 sm:px-8 py-8 md:py-10">{children}</div>
       </main>
 

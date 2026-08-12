@@ -16,9 +16,9 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'),
-  title: 'HandyPro — Trusted Local Handyman Services',
+  title: 'Fixora — Verified artisans across Ghana',
   description:
-    'HandyPro delivers reliable handyman services to local homeowners — from plumbing and carpentry to painting and repairs, all in one call.',
+    'Fixora connects households with verified artisans — book jobs, pay into escrow, and confirm when work is done.',
   icons: {
     icon: [{ url: '/favicon.svg', type: 'image/svg+xml' }],
   },
