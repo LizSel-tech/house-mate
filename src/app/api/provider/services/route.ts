@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server';
 import { requireSession } from '@/lib/auth/require-session';
-import { prisma } from '@/lib/db';
+import { query, queryOne } from '@/lib/db';
+import type { ArtisanProfile, Service } from '@/types/db';
 
 async function getArtisanId(userId: string) {
-  const profile = await prisma.artisanProfile.findUnique({ where: { userId } });
+  const profile = await queryOne<ArtisanProfile>(
+    `SELECT * FROM artisan_profiles WHERE user_id = $1`,
+    [userId],
+  );
   return profile?.id ?? null;
 }
 
@@ -16,10 +20,10 @@ export async function GET() {
     return NextResponse.json({ error: 'Artisan profile not found.' }, { status: 404 });
   }
 
-  const services = await prisma.service.findMany({
-    where: { artisanId },
-    orderBy: { createdAt: 'desc' },
-  });
+  const services = await query<Service>(
+    `SELECT * FROM services WHERE artisan_id = $1 ORDER BY created_at DESC`,
+    [artisanId],
+  );
 
   return NextResponse.json({ services });
 }
@@ -50,15 +54,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Enter a valid price.' }, { status: 400 });
   }
 
-  const service = await prisma.service.create({
-    data: {
-      artisanId,
-      title,
-      description: body.description?.trim() || null,
-      priceAmount,
-      priceUnit: body.priceUnit?.trim() || 'job',
-    },
-  });
+  const service = await queryOne<Service>(
+    `INSERT INTO services (artisan_id, title, description, price_amount, price_unit)
+     VALUES ($1, $2, $3, $4, $5)
+     RETURNING *`,
+    [artisanId, title, body.description?.trim() || null, priceAmount, body.priceUnit?.trim() || 'job'],
+  );
 
   return NextResponse.json({ service }, { status: 201 });
 }

@@ -3,8 +3,10 @@ import { requireSession } from '@/lib/auth/require-session';
 import {
   ensureDefaultPaymentMethods,
   getOrCreatePlatformSettings,
+  listPaymentMethods,
 } from '@/lib/admin-notify';
-import { prisma } from '@/lib/db';
+import { buildUpdates, queryOne } from '@/lib/db';
+import type { PlatformSetting } from '@/types/db';
 
 export async function GET() {
   const { user, error } = await requireSession(['admin']);
@@ -13,7 +15,7 @@ export async function GET() {
   await ensureDefaultPaymentMethods();
   const [settings, methods] = await Promise.all([
     getOrCreatePlatformSettings(),
-    prisma.paymentMethod.findMany({ orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }] }),
+    listPaymentMethods(),
   ]);
 
   return NextResponse.json({
@@ -39,17 +41,22 @@ export async function PATCH(request: Request) {
   };
 
   const settings = await getOrCreatePlatformSettings();
-  const updated = await prisma.platformSetting.update({
-    where: { id: settings.id },
-    data: {
-      ...(body.commissionRate !== undefined ? { commissionRate: Number(body.commissionRate) } : {}),
-      ...(body.subscriptionFee !== undefined ? { subscriptionFee: Number(body.subscriptionFee) } : {}),
-      ...(body.userSignupFee !== undefined ? { userSignupFee: Number(body.userSignupFee) } : {}),
-      ...(body.artisanSignupFee !== undefined
-        ? { artisanSignupFee: Number(body.artisanSignupFee) }
-        : {}),
-    },
+  const { sets, values } = buildUpdates({
+    commission_rate: body.commissionRate !== undefined ? Number(body.commissionRate) : undefined,
+    subscription_fee: body.subscriptionFee !== undefined ? Number(body.subscriptionFee) : undefined,
+    user_signup_fee: body.userSignupFee !== undefined ? Number(body.userSignupFee) : undefined,
+    artisan_signup_fee:
+      body.artisanSignupFee !== undefined ? Number(body.artisanSignupFee) : undefined,
   });
+
+  let updated = settings;
+  if (sets.length) {
+    values.push(settings.id);
+    updated = (await queryOne<PlatformSetting>(
+      `UPDATE platform_settings SET ${sets.join(', ')} WHERE id = $${values.length} RETURNING *`,
+      values,
+    ))!;
+  }
 
   return NextResponse.json({
     settings: {

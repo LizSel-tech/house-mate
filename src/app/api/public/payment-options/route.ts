@@ -2,17 +2,14 @@ import { NextResponse } from 'next/server';
 import {
   ensureDefaultPaymentMethods,
   getOrCreatePlatformSettings,
+  listPaymentMethods,
 } from '@/lib/admin-notify';
-import { prisma } from '@/lib/db';
 
 /** Public signup fees + active payment methods. */
 export async function GET() {
   await ensureDefaultPaymentMethods();
   const settings = await getOrCreatePlatformSettings();
-  const methods = await prisma.paymentMethod.findMany({
-    where: { isActive: true },
-    orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
-  });
+  const methods = await listPaymentMethods(true);
 
   return NextResponse.json({
     fees: {

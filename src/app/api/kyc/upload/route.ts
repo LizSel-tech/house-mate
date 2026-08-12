@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import { requireSession } from '@/lib/auth/require-session';
 import { rateLimit } from '@/lib/kyc/rate-limit';
-import { prisma } from '@/lib/db';
+import { queryOne } from '@/lib/db';
 import { saveUpload } from '@/lib/uploads';
+import type { KycVerification } from '@/types/db';
 
 /** Upload Ghana Card / selfie / liveness frames for an existing KYC draft. */
 export async function POST(request: Request) {
@@ -19,9 +20,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'kycId is required.' }, { status: 400 });
   }
 
-  const kyc = await prisma.kycVerification.findFirst({
-    where: { id: kycId, userId: user.id, status: { in: ['draft', 'error'] } },
-  });
+  const kyc = await queryOne<KycVerification>(
+    `SELECT * FROM kyc_verifications
+     WHERE id = $1 AND user_id = $2 AND status IN ('draft', 'error')`,
+    [kycId, user.id],
+  );
   if (!kyc) {
     return NextResponse.json({ error: 'KYC session not found or already submitted.' }, { status: 404 });
   }
@@ -63,13 +66,23 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: message }, { status: 400 });
   }
 
-  const updated = await prisma.kycVerification.update({
-    where: { id: kyc.id },
-    data: {
-      ...updates,
-      status: 'draft',
-    },
-  });
+  const updated = await queryOne<KycVerification>(
+    `UPDATE kyc_verifications
+     SET document_front_url = COALESCE($1, document_front_url),
+         document_back_url = COALESCE($2, document_back_url),
+         selfie_url = COALESCE($3, selfie_url),
+         liveness_image_urls = COALESCE($4, liveness_image_urls),
+         status = 'draft'
+     WHERE id = $5
+     RETURNING *`,
+    [
+      updates.documentFrontUrl ?? null,
+      updates.documentBackUrl ?? null,
+      updates.selfieUrl ?? null,
+      updates.livenessImageUrls ?? null,
+      kyc.id,
+    ],
+  );
 
   return NextResponse.json({ kyc: updated });
 }

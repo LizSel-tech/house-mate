@@ -4,7 +4,8 @@ import { PORTAL_HOME } from '@/lib/auth/constants';
 import { verifyOtp } from '@/lib/auth/otp';
 import { setSession } from '@/lib/auth/session';
 import { toSessionUser } from '@/lib/auth/users';
-import { isDatabaseConfigured, prisma } from '@/lib/db';
+import { isDatabaseConfigured, queryOne } from '@/lib/db';
+import type { SignupPayment, User } from '@/types/db';
 
 /**
  * Universal login — phone + OTP for all roles.
@@ -16,9 +17,9 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           error:
-            'DATABASE_URL is not set. Add your Postgres connection string to .env and restart the server.',
+            'Database is not configured. Set DATABASE_HOST, DATABASE_USER, and DATABASE_NAME in .env and restart the server.',
         },
-        { status: 503 }
+        { status: 503 },
       );
     }
 
@@ -37,47 +38,43 @@ export async function POST(request: Request) {
 
     const phone = verified.phone;
 
-    let user = await prisma.user.findFirst({
-      where: { phone },
-    });
+    let user = await queryOne<User>(`SELECT * FROM users WHERE phone = $1 LIMIT 1`, [phone]);
 
     if (!user && body.demoAdmin) {
-      user = await prisma.user.create({
-        data: {
-          name: 'Platform Admin',
-          phone,
-          role: 'admin',
-          accountStatus: 'active',
-        },
-      });
+      user = await queryOne<User>(
+        `INSERT INTO users (name, phone, role, account_status)
+         VALUES ('Platform Admin', $1, 'admin', 'active')
+         RETURNING *`,
+        [phone],
+      );
     }
 
     if (!user) {
       return NextResponse.json(
         { error: 'No account found for this phone. Please sign up first.' },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
     if (user.role !== 'admin' && user.accountStatus === 'pending_payment') {
-      const payment = await prisma.signupPayment.findFirst({
-        where: { userId: user.id },
-        orderBy: { createdAt: 'desc' },
-      });
+      const payment = await queryOne<SignupPayment>(
+        `SELECT * FROM signup_payments WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1`,
+        [user.id],
+      );
 
       // Legacy accounts created before payment gating — activate on first login.
       if (!payment) {
-        user = await prisma.user.update({
-          where: { id: user.id },
-          data: { accountStatus: 'active' },
-        });
+        user = (await queryOne<User>(
+          `UPDATE users SET account_status = 'active' WHERE id = $1 RETURNING *`,
+          [user.id],
+        ))!;
       } else if (payment.status === 'pending') {
         return NextResponse.json(
           {
             error:
               'Your signup payment is still awaiting admin confirmation. You’ll get an OTP after it’s approved.',
           },
-          { status: 403 }
+          { status: 403 },
         );
       } else if (payment.status === 'rejected') {
         return NextResponse.json(
@@ -86,13 +83,13 @@ export async function POST(request: Request) {
               payment.rejectionReason ||
               'Your signup payment was rejected. Contact support or sign up again with a valid proof.',
           },
-          { status: 403 }
+          { status: 403 },
         );
       } else if (payment.status === 'confirmed') {
-        user = await prisma.user.update({
-          where: { id: user.id },
-          data: { accountStatus: 'active' },
-        });
+        user = (await queryOne<User>(
+          `UPDATE users SET account_status = 'active' WHERE id = $1 RETURNING *`,
+          [user.id],
+        ))!;
       }
     }
 

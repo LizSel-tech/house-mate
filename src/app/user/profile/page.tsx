@@ -1,17 +1,13 @@
+import ProfileAvatarEditor from '@/components/profile/ProfileAvatarEditor';
 import { getSession } from '@/lib/auth/session';
-
-function initials(name?: string | null) {
-  if (!name) return '?';
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((p) => p[0]?.toUpperCase() || '')
-    .join('');
-}
+import { queryOne } from '@/lib/db';
+import type { User } from '@/types/db';
 
 export default async function UserProfilePage() {
-  const user = await getSession();
+  const session = await getSession();
+  const user = session
+    ? await queryOne<User>(`SELECT * FROM users WHERE id = $1`, [session.id])
+    : null;
 
   return (
     <div className="space-y-6">
@@ -22,24 +18,26 @@ export default async function UserProfilePage() {
       </div>
 
       <div className="rounded-3xl border border-border bg-card p-6 sm:p-8 max-w-lg">
-        <div className="flex items-center gap-4 mb-6 pb-6 border-b border-border">
-          <div className="w-14 h-14 rounded-2xl bg-secondary text-secondary-foreground flex items-center justify-center text-lg font-bold">
-            {initials(user?.name)}
-          </div>
+        <div className="mb-6 pb-6 border-b border-border space-y-4">
+          <ProfileAvatarEditor
+            name={user?.name || session?.name}
+            avatarUrl={user?.avatarUrl || session?.avatarUrl}
+            accent="secondary"
+          />
           <div>
-            <p className="text-xl font-bold text-foreground">{user?.name}</p>
+            <p className="text-xl font-bold text-foreground">{user?.name || session?.name}</p>
             <p className="text-sm text-muted-foreground">Service user</p>
           </div>
         </div>
         <div className="space-y-4">
           <div>
             <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Phone</p>
-            <p className="mt-1 font-semibold text-foreground">{user?.phone}</p>
+            <p className="mt-1 font-semibold text-foreground">{user?.phone || session?.phone}</p>
           </div>
-          {user?.email && (
+          {(user?.email || session?.email) && (
             <div>
               <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Email</p>
-              <p className="mt-1 font-semibold text-foreground">{user.email}</p>
+              <p className="mt-1 font-semibold text-foreground">{user?.email || session?.email}</p>
             </div>
           )}
         </div>

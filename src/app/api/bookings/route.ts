@@ -1,53 +1,39 @@
 import { NextResponse } from 'next/server';
 import { requireSession } from '@/lib/auth/require-session';
-import { prisma } from '@/lib/db';
+import { queryData, queryOne } from '@/lib/db';
+import { BOOKING_DATA_SQL } from '@/lib/db/bookings';
+import type { ArtisanProfile, Service } from '@/types/db';
 
 export async function GET() {
   const { user, error } = await requireSession(['user', 'artisan', 'admin']);
   if (error || !user) return error!;
 
   if (user.role === 'user') {
-    const bookings = await prisma.booking.findMany({
-      where: { userId: user.id },
-      include: {
-        artisan: { include: { user: { select: { name: true, phone: true } } } },
-        service: true,
-        payment: true,
-        review: true,
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+    const bookings = await queryData(
+      `${BOOKING_DATA_SQL} WHERE b.user_id = $1 ORDER BY b.created_at DESC`,
+      [user.id],
+    );
     return NextResponse.json({ bookings });
   }
 
   if (user.role === 'artisan') {
-    const profile = await prisma.artisanProfile.findUnique({ where: { userId: user.id } });
+    const profile = await queryOne<ArtisanProfile>(
+      `SELECT * FROM artisan_profiles WHERE user_id = $1`,
+      [user.id],
+    );
     if (!profile) {
       return NextResponse.json({ error: 'Artisan profile not found.' }, { status: 404 });
     }
-    const bookings = await prisma.booking.findMany({
-      where: { artisanId: profile.id },
-      include: {
-        user: { select: { name: true, phone: true } },
-        service: true,
-        payment: true,
-        review: true,
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+    const bookings = await queryData(
+      `${BOOKING_DATA_SQL} WHERE b.artisan_id = $1 ORDER BY b.created_at DESC`,
+      [profile.id],
+    );
     return NextResponse.json({ bookings });
   }
 
-  const bookings = await prisma.booking.findMany({
-    include: {
-      user: { select: { name: true, phone: true } },
-      artisan: { include: { user: { select: { name: true, phone: true } } } },
-      service: true,
-      payment: true,
-    },
-    orderBy: { createdAt: 'desc' },
-    take: 100,
-  });
+  const bookings = await queryData(
+    `${BOOKING_DATA_SQL} ORDER BY b.created_at DESC LIMIT 100`,
+  );
   return NextResponse.json({ bookings });
 }
 
@@ -67,16 +53,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Artisan and service are required.' }, { status: 400 });
   }
 
-  const artisan = await prisma.artisanProfile.findFirst({
-    where: { id: body.artisanId, verificationStatus: 'approved' },
-  });
+  const artisan = await queryOne<ArtisanProfile>(
+    `SELECT * FROM artisan_profiles WHERE id = $1 AND verification_status = 'approved'`,
+    [body.artisanId],
+  );
   if (!artisan) {
     return NextResponse.json({ error: 'Verified artisan not found.' }, { status: 404 });
   }
 
-  const service = await prisma.service.findFirst({
-    where: { id: body.serviceId, artisanId: artisan.id, isActive: true },
-  });
+  const service = await queryOne<Service>(
+    `SELECT * FROM services WHERE id = $1 AND artisan_id = $2 AND is_active = true`,
+    [body.serviceId, artisan.id],
+  );
   if (!service) {
     return NextResponse.json({ error: 'Service not found.' }, { status: 404 });
   }
@@ -90,21 +78,24 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Enter a valid agreed price.' }, { status: 400 });
   }
 
-  const booking = await prisma.booking.create({
-    data: {
-      userId: user.id,
-      artisanId: artisan.id,
-      serviceId: service.id,
-      location: body.location?.trim() || null,
-      problemDescription: body.problemDescription?.trim() || null,
+  const created = await queryOne<{ id: string }>(
+    `INSERT INTO bookings (user_id, artisan_id, service_id, location, problem_description, agreed_price, status)
+     VALUES ($1, $2, $3, $4, $5, $6, 'requested')
+     RETURNING id`,
+    [
+      user.id,
+      artisan.id,
+      service.id,
+      body.location?.trim() || null,
+      body.problemDescription?.trim() || null,
       agreedPrice,
-      status: 'requested',
-    },
-    include: {
-      service: true,
-      artisan: { include: { user: { select: { name: true } } } },
-    },
-  });
+    ],
+  );
 
-  return NextResponse.json({ booking }, { status: 201 });
+  const booking = await queryData(
+    `${BOOKING_DATA_SQL} WHERE b.id = $1`,
+    [created!.id],
+  );
+
+  return NextResponse.json({ booking: booking[0] }, { status: 201 });
 }

@@ -1,25 +1,31 @@
 import { NextResponse } from 'next/server';
 import { requireSession } from '@/lib/auth/require-session';
-import { prisma } from '@/lib/db';
+import { query, queryDataOne, queryOne } from '@/lib/db';
+import type { Booking, Payment, PlatformSetting } from '@/types/db';
 
 async function getCommissionRate() {
-  const settings = await prisma.platformSetting.findFirst();
+  const settings = await queryOne<PlatformSetting>(
+    `SELECT * FROM platform_settings ORDER BY updated_at DESC LIMIT 1`,
+  );
   return settings ? Number(settings.commissionRate) : 12;
 }
 
 /** Pay into escrow (mock Paystack collect for MVP) */
 export async function POST(
   _request: Request,
-  context: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> },
 ) {
   const { user, error } = await requireSession(['user']);
   if (error || !user) return error!;
 
   const { id } = await context.params;
-  const booking = await prisma.booking.findUnique({
-    where: { id },
-    include: { payment: true },
-  });
+  const booking = await queryDataOne<Booking & { payment: Payment | null }>(
+    `SELECT to_jsonb(b) || jsonb_build_object('payment', to_jsonb(p)) AS data
+     FROM bookings b
+     LEFT JOIN payments p ON p.booking_id = b.id
+     WHERE b.id = $1`,
+    [id],
+  );
 
   if (!booking || booking.userId !== user.id) {
     return NextResponse.json({ error: 'Booking not found.' }, { status: 404 });
@@ -27,7 +33,7 @@ export async function POST(
   if (booking.status !== 'accepted') {
     return NextResponse.json(
       { error: 'Payment is only available after the artisan accepts.' },
-      { status: 400 }
+      { status: 400 },
     );
   }
   if (booking.payment) {
@@ -42,20 +48,14 @@ export async function POST(
   const commission = Number(((amount * commissionRate) / 100).toFixed(2));
   const reference = `HM_${Date.now()}_${id.slice(0, 8)}`;
 
-  const payment = await prisma.payment.create({
-    data: {
-      bookingId: id,
-      amount,
-      commission,
-      escrowStatus: 'held',
-      paystackReference: reference,
-    },
-  });
+  const payment = await queryOne<Payment>(
+    `INSERT INTO payments (booking_id, amount, commission, escrow_status, paystack_reference)
+     VALUES ($1, $2, $3, 'held', $4)
+     RETURNING *`,
+    [id, amount, commission, reference],
+  );
 
-  await prisma.booking.update({
-    where: { id },
-    data: { status: 'in_progress' },
-  });
+  await query(`UPDATE bookings SET status = 'in_progress' WHERE id = $1`, [id]);
 
   return NextResponse.json({
     payment,

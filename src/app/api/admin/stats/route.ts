@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireSession } from '@/lib/auth/require-session';
-import { prisma } from '@/lib/db';
+import { query, queryData, queryOne } from '@/lib/db';
+import type { UserRole, VerificationStatus } from '@/types/db';
 
 function startOfDay(d: Date) {
   const x = new Date(d);
@@ -24,61 +25,73 @@ export async function GET() {
     usersByRole,
     artisansByStatus,
     bookingsByStatus,
-    pendingKyc,
+    pendingKycRow,
     heldEscrow,
     recentUsers,
     recentBookings,
     usersLast14,
     bookingsLast14,
   ] = await Promise.all([
-    prisma.user.groupBy({ by: ['role'], _count: { _all: true } }),
-    prisma.artisanProfile.groupBy({ by: ['verificationStatus'], _count: { _all: true } }),
-    prisma.booking.groupBy({ by: ['status'], _count: { _all: true } }),
-    prisma.kycVerification.count({ where: { status: 'pending' } }),
-    prisma.payment.aggregate({
-      where: { escrowStatus: 'held' },
-      _sum: { amount: true },
-    }),
-    prisma.user.findMany({
-      orderBy: { createdAt: 'desc' },
-      take: 5,
-      select: { id: true, name: true, role: true, phone: true, createdAt: true },
-    }),
-    prisma.booking.findMany({
-      orderBy: { createdAt: 'desc' },
-      take: 5,
-      include: {
-        user: { select: { name: true } },
-        artisan: { include: { user: { select: { name: true } } } },
-        payment: { select: { amount: true, escrowStatus: true } },
-      },
-    }),
-    prisma.user.findMany({
-      where: { createdAt: { gte: since } },
-      select: { createdAt: true },
-      orderBy: { createdAt: 'asc' },
-    }),
-    prisma.booking.findMany({
-      where: { createdAt: { gte: since } },
-      select: { createdAt: true },
-      orderBy: { createdAt: 'asc' },
-    }),
+    query<{ role: UserRole; count: string }>(
+      `SELECT role, count(*)::text AS count FROM users GROUP BY role`,
+    ),
+    query<{ verificationStatus: VerificationStatus; count: string }>(
+      `SELECT verification_status, count(*)::text AS count FROM artisan_profiles GROUP BY verification_status`,
+    ),
+    query<{ status: string; count: string }>(
+      `SELECT status::text AS status, count(*)::text AS count FROM bookings GROUP BY status`,
+    ),
+    queryOne<{ count: string }>(
+      `SELECT count(*)::text AS count FROM kyc_verifications WHERE status = 'pending'`,
+    ),
+    queryOne<{ amount: string | null }>(
+      `SELECT coalesce(sum(amount), 0)::text AS amount FROM payments WHERE escrow_status = 'held'`,
+    ),
+    query(
+      `SELECT id, name, role, phone, created_at FROM users ORDER BY created_at DESC LIMIT 5`,
+    ),
+    queryData(
+      `SELECT to_jsonb(b) || jsonb_build_object(
+         'user', jsonb_build_object('name', u.name),
+         'artisan', jsonb_build_object('user', jsonb_build_object('name', au.name)),
+         'payment', CASE WHEN p.id IS NULL THEN NULL ELSE jsonb_build_object(
+           'amount', p.amount, 'escrow_status', p.escrow_status
+         ) END
+       ) AS data
+       FROM bookings b
+       JOIN users u ON u.id = b.user_id
+       JOIN artisan_profiles a ON a.id = b.artisan_id
+       JOIN users au ON au.id = a.user_id
+       LEFT JOIN payments p ON p.booking_id = b.id
+       ORDER BY b.created_at DESC
+       LIMIT 5`,
+    ),
+    query<{ createdAt: Date }>(
+      `SELECT created_at FROM users WHERE created_at >= $1 ORDER BY created_at ASC`,
+      [since],
+    ),
+    query<{ createdAt: Date }>(
+      `SELECT created_at FROM bookings WHERE created_at >= $1 ORDER BY created_at ASC`,
+      [since],
+    ),
   ]);
 
   const roleCounts = { user: 0, artisan: 0, admin: 0 };
   for (const row of usersByRole) {
-    roleCounts[row.role] = row._count._all;
+    roleCounts[row.role] = Number(row.count);
   }
 
   const verificationCounts = { pending: 0, approved: 0, rejected: 0 };
   for (const row of artisansByStatus) {
-    verificationCounts[row.verificationStatus] = row._count._all;
+    verificationCounts[row.verificationStatus] = Number(row.count);
   }
 
   const bookingCounts: Record<string, number> = {};
   for (const row of bookingsByStatus) {
-    bookingCounts[row.status] = row._count._all;
+    bookingCounts[row.status] = Number(row.count);
   }
+
+  const pendingKyc = Number(pendingKycRow?.count || 0);
 
   const activeBookings = Object.entries(bookingCounts)
     .filter(([status]) => !['completed', 'cancelled'].includes(status))
@@ -91,12 +104,14 @@ export async function GET() {
 
   const userGrowth = dayKeys.map((day) => ({
     day,
-    count: usersLast14.filter((u) => u.createdAt.toISOString().slice(0, 10) === day).length,
+    count: usersLast14.filter((u) => new Date(u.createdAt).toISOString().slice(0, 10) === day)
+      .length,
   }));
 
   const bookingGrowth = dayKeys.map((day) => ({
     day,
-    count: bookingsLast14.filter((b) => b.createdAt.toISOString().slice(0, 10) === day).length,
+    count: bookingsLast14.filter((b) => new Date(b.createdAt).toISOString().slice(0, 10) === day)
+      .length,
   }));
 
   return NextResponse.json({
@@ -110,7 +125,7 @@ export async function GET() {
       pendingKyc,
       activeBookings,
       totalBookings: Object.values(bookingCounts).reduce((a, b) => a + b, 0),
-      heldEscrow: Number(heldEscrow._sum.amount || 0),
+      heldEscrow: Number(heldEscrow?.amount || 0),
     },
     charts: {
       usersByRole: [
@@ -132,14 +147,14 @@ export async function GET() {
     },
     recent: {
       users: recentUsers,
-      bookings: recentBookings.map((b) => ({
+      bookings: (recentBookings as Array<Record<string, unknown>>).map((b) => ({
         id: b.id,
         status: b.status,
         createdAt: b.createdAt,
-        customer: b.user.name,
-        artisan: b.artisan.user.name,
-        amount: b.payment ? Number(b.payment.amount) : null,
-        escrowStatus: b.payment?.escrowStatus || null,
+        customer: (b.user as { name: string }).name,
+        artisan: ((b.artisan as { user: { name: string } }).user).name,
+        amount: b.payment ? Number((b.payment as { amount: string | number }).amount) : null,
+        escrowStatus: (b.payment as { escrowStatus?: string } | null)?.escrowStatus || null,
       })),
     },
   });

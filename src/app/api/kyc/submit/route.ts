@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { requireSession } from '@/lib/auth/require-session';
 import { rateLimit } from '@/lib/kyc/rate-limit';
-import { prisma } from '@/lib/db';
+import { query, queryOne, withTransaction } from '@/lib/db';
+import type { KycVerification } from '@/types/db';
 
 /** Submit KYC package for admin review (Ghana Card + selfie + liveness frames). */
 export async function POST(request: Request) {
@@ -17,9 +18,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'kycId is required.' }, { status: 400 });
   }
 
-  const kyc = await prisma.kycVerification.findFirst({
-    where: { id: body.kycId, userId: user.id, status: { in: ['draft', 'error'] } },
-  });
+  const kyc = await queryOne<KycVerification>(
+    `SELECT * FROM kyc_verifications
+     WHERE id = $1 AND user_id = $2 AND status IN ('draft', 'error')`,
+    [body.kycId, user.id],
+  );
   if (!kyc) {
     return NextResponse.json({ error: 'KYC session not found.' }, { status: 404 });
   }
@@ -30,7 +33,7 @@ export async function POST(request: Request) {
         error:
           'Upload Ghana Card front, a selfie, and at least 6 guided liveness frames before submitting.',
       },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -38,33 +41,40 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'First and last name are required.' }, { status: 400 });
   }
 
-  const updated = await prisma.$transaction(async (tx) => {
-    const row = await tx.kycVerification.update({
-      where: { id: kyc.id },
-      data: {
-        status: 'pending',
-        provider: 'manual',
-        submittedAt: new Date(),
-        completedAt: null,
-        failureReason: null,
-        providerRawResult: {
+  const updated = await withTransaction(async (tx) => {
+    const row = await queryOne<KycVerification>(
+      `UPDATE kyc_verifications
+       SET status = 'pending',
+           provider = 'manual',
+           submitted_at = now(),
+           completed_at = NULL,
+           failure_reason = NULL,
+           provider_raw_result = $1::jsonb,
+           extracted_fields = $2::jsonb
+       WHERE id = $3
+       RETURNING *`,
+      [
+        JSON.stringify({
           mode: 'manual',
           message: 'Awaiting admin review of Ghana Card, selfie, and liveness frames.',
-        },
-        extractedFields: {
+        }),
+        JSON.stringify({
           full_name: `${kyc.firstName} ${kyc.lastName}`,
           id_number: kyc.ghanaCardNumber,
           country: 'GH',
           id_type: 'NATIONAL_ID',
-        },
-      },
-    });
+        }),
+        kyc.id,
+      ],
+      tx,
+    );
 
     if (kyc.artisanId) {
-      await tx.artisanProfile.update({
-        where: { id: kyc.artisanId },
-        data: { verificationStatus: 'pending' },
-      });
+      await query(
+        `UPDATE artisan_profiles SET verification_status = 'pending' WHERE id = $1`,
+        [kyc.artisanId],
+        tx,
+      );
     }
 
     return row;

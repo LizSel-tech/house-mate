@@ -1,6 +1,7 @@
 import { createHash, randomInt, timingSafeEqual } from 'crypto';
-import { prisma } from '@/lib/db';
+import { query, queryOne } from '@/lib/db';
 import { normalizePhone } from '@/lib/auth/session-token';
+import type { OtpCode } from '@/types/db';
 
 type OtpPurpose = 'login' | 'signup';
 
@@ -32,14 +33,18 @@ export async function issueOtp(phoneRaw: string, purpose: OtpPurpose = 'login') 
   const codeHash = hashOtp(code);
   const expiresAt = new Date(Date.now() + OTP_TTL_MS);
 
-  await prisma.otpCode.updateMany({
-    where: { phone, purpose, consumedAt: null },
-    data: { consumedAt: new Date() },
-  });
+  await query(
+    `UPDATE otp_codes
+     SET consumed_at = now()
+     WHERE phone = $1 AND purpose = $2 AND consumed_at IS NULL`,
+    [phone, purpose],
+  );
 
-  await prisma.otpCode.create({
-    data: { phone, codeHash, purpose, expiresAt },
-  });
+  await query(
+    `INSERT INTO otp_codes (phone, code_hash, purpose, expires_at)
+     VALUES ($1, $2, $3, $4)`,
+    [phone, codeHash, purpose, expiresAt],
+  );
 
   const exposeCode = process.env.NODE_ENV !== 'production' || process.env.OTP_DEV_MODE === 'true';
 
@@ -56,48 +61,43 @@ export async function issueOtp(phoneRaw: string, purpose: OtpPurpose = 'login') 
 export async function verifyOtp(
   phoneRaw: string,
   code: string,
-  purpose: OtpPurpose = 'login'
+  purpose: OtpPurpose = 'login',
 ): Promise<{ ok: true; phone: string } | { ok: false; error: string }> {
   const phone = normalizePhone(phoneRaw) || phoneRaw.trim();
   const codeHash = hashOtp(code.trim());
 
-  const record = await prisma.otpCode.findFirst({
-    where: { phone, purpose, consumedAt: null },
-    orderBy: { createdAt: 'desc' },
-  });
+  const record = await queryOne<OtpCode>(
+    `SELECT * FROM otp_codes
+     WHERE phone = $1 AND purpose = $2 AND consumed_at IS NULL
+     ORDER BY created_at DESC
+     LIMIT 1`,
+    [phone, purpose],
+  );
 
   if (!record) {
     return { ok: false, error: 'No active OTP. Please request a new code.' };
   }
 
-  if (record.expiresAt.getTime() < Date.now()) {
-    await prisma.otpCode.update({
-      where: { id: record.id },
-      data: { consumedAt: new Date() },
-    });
+  const expiresAt = new Date(record.expiresAt);
+  if (expiresAt.getTime() < Date.now()) {
+    await query(`UPDATE otp_codes SET consumed_at = now() WHERE id = $1`, [record.id]);
     return { ok: false, error: 'OTP expired. Please request a new code.' };
   }
 
   if (record.attemptCount >= MAX_ATTEMPTS) {
-    await prisma.otpCode.update({
-      where: { id: record.id },
-      data: { consumedAt: new Date() },
-    });
+    await query(`UPDATE otp_codes SET consumed_at = now() WHERE id = $1`, [record.id]);
     return { ok: false, error: 'Too many attempts. Please request a new code.' };
   }
 
   if (!safeEqualHash(record.codeHash, codeHash)) {
-    await prisma.otpCode.update({
-      where: { id: record.id },
-      data: { attemptCount: { increment: 1 } },
-    });
+    await query(
+      `UPDATE otp_codes SET attempt_count = attempt_count + 1 WHERE id = $1`,
+      [record.id],
+    );
     return { ok: false, error: 'Invalid OTP.' };
   }
 
-  await prisma.otpCode.update({
-    where: { id: record.id },
-    data: { consumedAt: new Date() },
-  });
+  await query(`UPDATE otp_codes SET consumed_at = now() WHERE id = $1`, [record.id]);
 
   return { ok: true, phone };
 }

@@ -1,18 +1,31 @@
 import { NextResponse } from 'next/server';
 import { requireSession } from '@/lib/auth/require-session';
-import { prisma } from '@/lib/db';
+import { query, queryDataOne, queryOne } from '@/lib/db';
 import { saveUpload } from '@/lib/uploads';
+import type { ArtisanProfile, VerificationDocument } from '@/types/db';
 
 export async function GET() {
   const { user, error } = await requireSession(['artisan']);
   if (error || !user) return error!;
 
-  const profile = await prisma.artisanProfile.findUnique({
-    where: { userId: user.id },
-    include: {
-      verificationDocuments: { orderBy: { createdAt: 'desc' }, take: 1 },
-    },
-  });
+  const profile = await queryDataOne<
+    ArtisanProfile & { verificationDocuments: VerificationDocument[] }
+  >(
+    `SELECT to_jsonb(a) || jsonb_build_object(
+       'verification_documents', COALESCE((
+         SELECT jsonb_agg(to_jsonb(d) ORDER BY d.created_at DESC)
+         FROM (
+           SELECT * FROM verification_documents
+           WHERE artisan_id = a.id
+           ORDER BY created_at DESC
+           LIMIT 1
+         ) d
+       ), '[]'::jsonb)
+     ) AS data
+     FROM artisan_profiles a
+     WHERE a.user_id = $1`,
+    [user.id],
+  );
 
   if (!profile) {
     return NextResponse.json({ error: 'Artisan profile not found.' }, { status: 404 });
@@ -34,7 +47,10 @@ export async function POST(request: Request) {
   const { user, error } = await requireSession(['artisan']);
   if (error || !user) return error!;
 
-  const profile = await prisma.artisanProfile.findUnique({ where: { userId: user.id } });
+  const profile = await queryOne<ArtisanProfile>(
+    `SELECT * FROM artisan_profiles WHERE user_id = $1`,
+    [user.id],
+  );
   if (!profile) {
     return NextResponse.json({ error: 'Artisan profile not found.' }, { status: 404 });
   }
@@ -50,7 +66,7 @@ export async function POST(request: Request) {
   if (!ghanaCardNumber || !guarantorName || !guarantorPhone) {
     return NextResponse.json(
       { error: 'Ghana Card number and guarantor details are required.' },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -88,9 +104,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Ghana Card photo/document is required.' }, { status: 400 });
   }
 
-  const document = await prisma.verificationDocument.create({
-    data: {
-      artisanId: profile.id,
+  const document = await queryOne<VerificationDocument>(
+    `INSERT INTO verification_documents (
+       artisan_id, ghana_card_url, ghana_card_number, police_report_url,
+       residence_proof_url, guarantor_name, guarantor_phone, skills_evidence_urls, status
+     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending')
+     RETURNING *`,
+    [
+      profile.id,
       ghanaCardUrl,
       ghanaCardNumber,
       policeReportUrl,
@@ -98,19 +119,15 @@ export async function POST(request: Request) {
       guarantorName,
       guarantorPhone,
       skillsEvidenceUrls,
-      status: 'pending',
-    },
-  });
+    ],
+  );
 
-  await prisma.artisanProfile.update({
-    where: { id: profile.id },
-    data: {
-      trade,
-      bio: bio || null,
-      serviceArea: serviceArea || null,
-      verificationStatus: 'pending',
-    },
-  });
+  await query(
+    `UPDATE artisan_profiles
+     SET trade = $1, bio = $2, service_area = $3, verification_status = 'pending'
+     WHERE id = $4`,
+    [trade, bio || null, serviceArea || null, profile.id],
+  );
 
   return NextResponse.json({ document }, { status: 201 });
 }

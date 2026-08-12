@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
-import { BookingStatus } from '@prisma/client';
 import { requireSession } from '@/lib/auth/require-session';
-import { prisma } from '@/lib/db';
+import { query, queryDataOne } from '@/lib/db';
+import { BOOKING_DATA_SQL } from '@/lib/db/bookings';
+import type { ArtisanProfile, Booking, BookingStatus, Payment } from '@/types/db';
 
 const ARTISAN_TRANSITIONS: Partial<Record<BookingStatus, BookingStatus[]>> = {
   requested: ['accepted', 'cancelled'],
@@ -11,12 +12,12 @@ const ARTISAN_TRANSITIONS: Partial<Record<BookingStatus, BookingStatus[]>> = {
 
 const USER_TRANSITIONS: Partial<Record<BookingStatus, BookingStatus[]>> = {
   requested: ['cancelled'],
-  completed: ['completed'], // confirm handled via payment release
+  completed: ['completed'],
 };
 
 export async function PATCH(
   request: Request,
-  context: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> },
 ) {
   const { user, error } = await requireSession(['user', 'artisan', 'admin']);
   if (error || !user) return error!;
@@ -27,10 +28,19 @@ export async function PATCH(
     agreedPrice?: number | string;
   };
 
-  const booking = await prisma.booking.findUnique({
-    where: { id },
-    include: { artisan: true, payment: true },
-  });
+  const booking = await queryDataOne<
+    Booking & { artisan: ArtisanProfile; payment: Payment | null }
+  >(
+    `SELECT to_jsonb(b) || jsonb_build_object(
+       'artisan', to_jsonb(a),
+       'payment', to_jsonb(p)
+     ) AS data
+     FROM bookings b
+     JOIN artisan_profiles a ON a.id = b.artisan_id
+     LEFT JOIN payments p ON p.booking_id = b.id
+     WHERE b.id = $1`,
+    [id],
+  );
   if (!booking) {
     return NextResponse.json({ error: 'Booking not found.' }, { status: 404 });
   }
@@ -48,10 +58,8 @@ export async function PATCH(
     if (!Number.isFinite(agreedPrice) || agreedPrice <= 0) {
       return NextResponse.json({ error: 'Invalid price.' }, { status: 400 });
     }
-    const updated = await prisma.booking.update({
-      where: { id },
-      data: { agreedPrice },
-    });
+    await query(`UPDATE bookings SET agreed_price = $1 WHERE id = $2`, [agreedPrice, id]);
+    const updated = await queryDataOne(`${BOOKING_DATA_SQL} WHERE b.id = $1`, [id]);
     return NextResponse.json({ booking: updated });
   }
 
@@ -68,15 +76,12 @@ export async function PATCH(
   if (!allowed) {
     return NextResponse.json(
       { error: `Cannot change status from ${booking.status} to ${body.status}.` },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
-  const updated = await prisma.booking.update({
-    where: { id },
-    data: { status: body.status },
-    include: { payment: true, service: true },
-  });
+  await query(`UPDATE bookings SET status = $1 WHERE id = $2`, [body.status, id]);
+  const updated = await queryDataOne(`${BOOKING_DATA_SQL} WHERE b.id = $1`, [id]);
 
   return NextResponse.json({ booking: updated });
 }

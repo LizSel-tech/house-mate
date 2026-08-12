@@ -10,6 +10,7 @@ const navItems: PortalNavItem[] = [
   { href: '/admin/bookings', label: 'Bookings', icon: 'CalendarDaysIcon' },
   { href: '/admin/users', label: 'Users', icon: 'UsersIcon' },
   { href: '/admin/settings', label: 'Settings', icon: 'Cog6ToothIcon' },
+  { href: '/admin/profile', label: 'Profile', icon: 'UserCircleIcon' },
 ];
 
 export default async function AdminPortalLayout({

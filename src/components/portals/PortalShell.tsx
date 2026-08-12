@@ -63,9 +63,9 @@ export default function PortalShell({
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col md:flex-row">
+    <div className="h-screen overflow-hidden bg-background flex flex-col md:flex-row">
       {/* Desktop sidebar */}
-      <aside className="hidden md:flex md:w-64 md:flex-col bg-secondary text-white shrink-0">
+      <aside className="hidden md:flex md:w-64 md:flex-col md:h-screen md:sticky md:top-0 overflow-hidden bg-secondary text-white shrink-0">
         <div className="px-5 py-6 border-b border-white/10">
           <Link href="/" className="flex items-center gap-2.5">
             <AppLogo size={32} />
@@ -101,8 +101,29 @@ export default function PortalShell({
         </nav>
 
         <div className="px-5 py-5 border-t border-white/10">
-          <p className="text-sm font-semibold truncate">{user.name}</p>
-          <p className="text-xs text-white/40 mt-0.5">{ROLE_LABELS[user.role]}</p>
+          <div className="flex items-center gap-3 mb-3">
+            {user.avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={user.avatarUrl}
+                alt={user.name}
+                className="w-9 h-9 rounded-xl object-cover border border-white/10"
+              />
+            ) : (
+              <div className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center text-xs font-bold">
+                {user.name
+                  .split(/\s+/)
+                  .filter(Boolean)
+                  .slice(0, 2)
+                  .map((p) => p[0]?.toUpperCase() || '')
+                  .join('')}
+              </div>
+            )}
+            <div className="min-w-0">
+              <p className="text-sm font-semibold truncate">{user.name}</p>
+              <p className="text-xs text-white/40 mt-0.5">{ROLE_LABELS[user.role]}</p>
+            </div>
+          </div>
           <p className="text-xs text-white/40">{user.phone}</p>
           <button
             type="button"
@@ -166,7 +187,7 @@ export default function PortalShell({
         </div>
       )}
 
-      <main className="flex-1 min-w-0 bg-[radial-gradient(ellipse_at_top,_rgba(217,119,6,0.06),_transparent_55%)]">
+      <main className="flex-1 min-w-0 min-h-0 overflow-y-auto bg-[radial-gradient(ellipse_at_top,_rgba(217,119,6,0.06),_transparent_55%)]">
         <div className="max-w-5xl mx-auto px-5 sm:px-8 py-8 md:py-10">{children}</div>
       </main>
 

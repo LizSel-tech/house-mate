@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
 import { requireSession } from '@/lib/auth/require-session';
-import { prisma } from '@/lib/db';
+import { query, queryOne, withTransaction } from '@/lib/db';
+import type { KycVerification } from '@/types/db';
 
 /** Admin approve/reject a KYC submission. */
 export async function PATCH(
   request: Request,
-  context: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> },
 ) {
   const { user, error } = await requireSession(['admin']);
   if (error || !user) return error!;
@@ -20,7 +21,7 @@ export async function PATCH(
     return NextResponse.json({ error: 'Status must be approved or rejected.' }, { status: 400 });
   }
 
-  const kyc = await prisma.kycVerification.findUnique({ where: { id } });
+  const kyc = await queryOne<KycVerification>(`SELECT * FROM kyc_verifications WHERE id = $1`, [id]);
   if (!kyc) {
     return NextResponse.json({ error: 'KYC record not found.' }, { status: 404 });
   }
@@ -32,30 +33,37 @@ export async function PATCH(
   const kycStatus = body.status === 'approved' ? 'verified' : 'rejected';
   const artisanStatus = body.status === 'approved' ? 'approved' : 'rejected';
 
-  const updated = await prisma.$transaction(async (tx) => {
-    const row = await tx.kycVerification.update({
-      where: { id },
-      data: {
-        status: kycStatus,
-        failureReason:
-          body.status === 'rejected'
-            ? body.reason?.trim() || 'Rejected by admin after document review.'
-            : null,
-        completedAt: new Date(),
-        providerRawResult: {
+  const updated = await withTransaction(async (tx) => {
+    const row = await queryOne<KycVerification>(
+      `UPDATE kyc_verifications
+       SET status = $1,
+           failure_reason = $2,
+           completed_at = now(),
+           provider_raw_result = $3::jsonb
+       WHERE id = $4
+       RETURNING *`,
+      [
+        kycStatus,
+        body.status === 'rejected'
+          ? body.reason?.trim() || 'Rejected by admin after document review.'
+          : null,
+        JSON.stringify({
           mode: 'manual',
           decidedBy: user.id,
           decision: body.status,
           reason: body.reason?.trim() || null,
-        },
-      },
-    });
+        }),
+        id,
+      ],
+      tx,
+    );
 
     if (kyc.artisanId) {
-      await tx.artisanProfile.update({
-        where: { id: kyc.artisanId },
-        data: { verificationStatus: artisanStatus },
-      });
+      await query(
+        `UPDATE artisan_profiles SET verification_status = $1 WHERE id = $2`,
+        [artisanStatus, kyc.artisanId],
+        tx,
+      );
     }
 
     return row;

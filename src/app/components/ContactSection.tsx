@@ -111,7 +111,7 @@ export default function ContactSection() {
                         required
                         value={form.name}
                         onChange={handleChange}
-                        placeholder="Jennifer Caldwell"
+                        placeholder="Ama Mensah"
                         className="w-full px-4 py-3 rounded-2xl border border-border bg-background text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring transition"
                       />
                     </div>
@@ -125,7 +125,7 @@ export default function ContactSection() {
                         type="tel"
                         value={form.phone}
                         onChange={handleChange}
-                        placeholder="(503) 555-0100"
+                        placeholder="024 123 4567"
                         className="w-full px-4 py-3 rounded-2xl border border-border bg-background text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring transition"
                       />
                     </div>
@@ -142,7 +142,7 @@ export default function ContactSection() {
                       required
                       value={form.email}
                       onChange={handleChange}
-                      placeholder="jennifer@email.com"
+                      placeholder="ama@email.com"
                       className="w-full px-4 py-3 rounded-2xl border border-border bg-background text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring transition"
                     />
                   </div>
@@ -226,9 +226,9 @@ export default function ContactSection() {
                 </div>
                 <div>
                   <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">Service Area</p>
-                  <h3 className="text-xl font-bold text-foreground mb-3">Portland Metro & Surrounds</h3>
+                  <h3 className="text-xl font-bold text-foreground mb-3">Greater Accra & major cities</h3>
                   <div className="flex flex-wrap gap-2">
-                    {['Portland', 'Beaverton', 'Lake Oswego', 'Tigard', 'Hillsboro', 'Gresham'].map((city) => (
+                    {['Accra', 'Kumasi', 'Tema', 'Takoradi', 'Cape Coast', 'Tamale'].map((city) => (
                       <span
                         key={city}
                         className="px-3 py-1.5 rounded-xl bg-muted border border-border text-xs font-semibold text-muted-foreground"
@@ -247,9 +247,9 @@ export default function ContactSection() {
                 <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-4">Credentials</p>
                 <div className="flex flex-col gap-3">
                   {[
-                    { icon: 'ShieldCheckIcon', text: 'Oregon Licensed Contractor' },
-                    { icon: 'DocumentCheckIcon', text: 'Fully Insured & Bonded' },
-                    { icon: 'StarIcon', text: '4.9★ on Google & Yelp' },
+                    { icon: 'ShieldCheckIcon', text: 'Ghana Card–verified artisans' },
+                    { icon: 'DocumentCheckIcon', text: 'Escrow-protected payments' },
+                    { icon: 'StarIcon', text: 'Rated by Ghana households' },
                   ].map((badge) => (
                     <div key={badge.text} className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center text-primary shrink-0">

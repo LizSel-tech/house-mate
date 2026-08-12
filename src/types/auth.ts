@@ -8,6 +8,7 @@ export interface SessionUser {
   phone: string;
   email?: string;
   role: UserRole;
+  avatarUrl?: string | null;
 }
 
 export interface SignupPayload {

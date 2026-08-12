@@ -1,20 +1,25 @@
 import { NextResponse } from 'next/server';
 import { requireSession } from '@/lib/auth/require-session';
-import { prisma } from '@/lib/db';
+import { query, queryOne } from '@/lib/db';
+import type { AdminNotification } from '@/types/db';
 
 export async function GET() {
   const { user, error } = await requireSession(['admin']);
   if (error || !user) return error!;
 
-  const [unreadCount, notifications] = await Promise.all([
-    prisma.adminNotification.count({ where: { readAt: null } }),
-    prisma.adminNotification.findMany({
-      orderBy: { createdAt: 'desc' },
-      take: 40,
-    }),
+  const [unreadRow, notifications] = await Promise.all([
+    queryOne<{ count: string }>(
+      `SELECT count(*)::text AS count FROM admin_notifications WHERE read_at IS NULL`,
+    ),
+    query<AdminNotification>(
+      `SELECT * FROM admin_notifications ORDER BY created_at DESC LIMIT 40`,
+    ),
   ]);
 
-  return NextResponse.json({ unreadCount, notifications });
+  return NextResponse.json({
+    unreadCount: Number(unreadRow?.count || 0),
+    notifications,
+  });
 }
 
 export async function PATCH(request: Request) {
@@ -24,10 +29,7 @@ export async function PATCH(request: Request) {
   const body = (await request.json()) as { id?: string; markAllRead?: boolean };
 
   if (body.markAllRead) {
-    await prisma.adminNotification.updateMany({
-      where: { readAt: null },
-      data: { readAt: new Date() },
-    });
+    await query(`UPDATE admin_notifications SET read_at = now() WHERE read_at IS NULL`);
     return NextResponse.json({ ok: true });
   }
 
@@ -35,10 +37,7 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: 'id or markAllRead required.' }, { status: 400 });
   }
 
-  await prisma.adminNotification.update({
-    where: { id: body.id },
-    data: { readAt: new Date() },
-  });
+  await query(`UPDATE admin_notifications SET read_at = now() WHERE id = $1`, [body.id]);
 
   return NextResponse.json({ ok: true });
 }

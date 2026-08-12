@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
 import { requireSession } from '@/lib/auth/require-session';
-import { prisma } from '@/lib/db';
+import { query, queryOne, withTransaction } from '@/lib/db';
+import type { VerificationDocument } from '@/types/db';
 
 export async function PATCH(
   request: Request,
-  context: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> },
 ) {
   const { user, error } = await requireSession(['admin']);
   if (error || !user) return error!;
@@ -15,25 +16,29 @@ export async function PATCH(
     return NextResponse.json({ error: 'Status must be approved or rejected.' }, { status: 400 });
   }
 
-  const doc = await prisma.verificationDocument.findUnique({ where: { id } });
+  const doc = await queryOne<VerificationDocument>(
+    `SELECT * FROM verification_documents WHERE id = $1`,
+    [id],
+  );
   if (!doc) {
     return NextResponse.json({ error: 'Verification not found.' }, { status: 404 });
   }
 
-  const updated = await prisma.$transaction(async (tx) => {
-    const document = await tx.verificationDocument.update({
-      where: { id },
-      data: {
-        status: body.status,
-        reviewedById: user.id,
-        reviewedAt: new Date(),
-      },
-    });
+  const updated = await withTransaction(async (tx) => {
+    const document = await queryOne<VerificationDocument>(
+      `UPDATE verification_documents
+       SET status = $1, reviewed_by = $2, reviewed_at = now()
+       WHERE id = $3
+       RETURNING *`,
+      [body.status, user.id, id],
+      tx,
+    );
 
-    await tx.artisanProfile.update({
-      where: { id: doc.artisanId },
-      data: { verificationStatus: body.status },
-    });
+    await query(
+      `UPDATE artisan_profiles SET verification_status = $1 WHERE id = $2`,
+      [body.status, doc.artisanId],
+      tx,
+    );
 
     return document;
   });

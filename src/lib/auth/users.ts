@@ -1,5 +1,5 @@
-import type { User, UserRole } from '@prisma/client';
 import type { SessionUser } from '@/types/auth';
+import type { User } from '@/types/db';
 
 export function toSessionUser(user: User): SessionUser {
   return {
@@ -8,6 +8,7 @@ export function toSessionUser(user: User): SessionUser {
     phone: user.phone,
     email: user.email ?? undefined,
     role: user.role as SessionUser['role'],
+    avatarUrl: user.avatarUrl ?? null,
   };
 }
 
@@ -15,4 +16,4 @@ export function isAppRole(role: string): role is SessionUser['role'] {
   return role === 'user' || role === 'artisan' || role === 'admin';
 }
 
-export type { UserRole };
+export type { UserRole } from '@/types/auth';

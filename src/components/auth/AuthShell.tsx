@@ -57,8 +57,8 @@ export default function AuthShell({
         <p className="relative z-10 text-xs text-secondary-foreground/40">© {new Date().getFullYear()} Fixora</p>
       </aside>
 
-      <div className="flex flex-col min-h-screen">
-        <header className="px-5 sm:px-8 py-5 flex items-center justify-between lg:justify-end">
+      <div className="flex flex-col min-h-screen lg:h-screen lg:overflow-y-auto">
+        <header className="px-5 sm:px-8 py-5 flex items-center justify-between lg:justify-end shrink-0">
           <Link href="/" className="flex lg:hidden items-center gap-2.5">
             <AppLogo size={32} />
             <span className="font-display text-lg font-bold text-foreground tracking-tight">Fixora</span>
@@ -71,15 +71,13 @@ export default function AuthShell({
           </Link>
         </header>
 
-        <main className="flex-1 flex items-start lg:items-center justify-center px-5 sm:px-8 pb-16">
-          <div className="w-full max-w-md">
+        <main className="flex-1 flex justify-center px-5 sm:px-8 pb-16">
+          <div className="w-full max-w-md py-4 lg:py-8">
             <div className="mb-8">
               <h1 className="text-3xl sm:text-4xl font-extrabold text-foreground tracking-tight">{title}</h1>
               <p className="mt-2 text-muted-foreground leading-relaxed">{subtitle}</p>
             </div>
-            <div className="bg-card border border-border rounded-[1.75rem] p-6 sm:p-8 shadow-[0_20px_50px_-28px_rgba(28,25,23,0.35)]">
-              {children}
-            </div>
+            {children}
           </div>
         </main>
       </div>

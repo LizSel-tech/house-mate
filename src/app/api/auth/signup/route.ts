@@ -2,8 +2,9 @@ import { NextResponse } from 'next/server';
 import type { SignupPayload } from '@/types/auth';
 import { normalizePhone } from '@/lib/auth/session-token';
 import { notifyAdmin, getOrCreatePlatformSettings } from '@/lib/admin-notify';
-import { isDatabaseConfigured, prisma } from '@/lib/db';
+import { isDatabaseConfigured, queryOne, withTransaction } from '@/lib/db';
 import { saveUpload } from '@/lib/uploads';
+import type { PaymentMethod, User } from '@/types/db';
 
 /**
  * Signup with required registration payment proof.
@@ -15,9 +16,9 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           error:
-            'DATABASE_URL is not set. Add your Postgres connection string to .env and restart the server.',
+            'Database is not configured. Set DATABASE_HOST, DATABASE_USER, and DATABASE_NAME in .env and restart the server.',
         },
-        { status: 503 }
+        { status: 503 },
       );
     }
 
@@ -36,38 +37,40 @@ export async function POST(request: Request) {
     if (role !== 'user' && role !== 'artisan') {
       return NextResponse.json(
         { error: 'Choose Service User or Service Provider.' },
-        { status: 400 }
+        { status: 400 },
       );
     }
     if (!methodId || !reference) {
       return NextResponse.json(
         { error: 'Select a payment method and enter your transaction reference.' },
-        { status: 400 }
+        { status: 400 },
       );
     }
     if (!(proof instanceof File) || proof.size === 0) {
       return NextResponse.json(
         { error: 'Upload a payment proof screenshot or PDF.' },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     const phone = normalizePhone(phoneRaw) || phoneRaw;
-    const email = emailRaw || undefined;
+    const email = emailRaw || null;
 
-    const existing = await prisma.user.findFirst({
-      where: { OR: [{ phone }, { phone: phoneRaw }] },
-    });
+    const existing = await queryOne<User>(
+      `SELECT * FROM users WHERE phone = $1 OR phone = $2 LIMIT 1`,
+      [phone, phoneRaw],
+    );
     if (existing) {
       return NextResponse.json(
         { error: 'An account with this phone already exists. Please log in.' },
-        { status: 409 }
+        { status: 409 },
       );
     }
 
-    const method = await prisma.paymentMethod.findFirst({
-      where: { id: methodId, isActive: true },
-    });
+    const method = await queryOne<PaymentMethod>(
+      `SELECT * FROM payment_methods WHERE id = $1 AND is_active = true`,
+      [methodId],
+    );
     if (!method) {
       return NextResponse.json({ error: 'Invalid payment method.' }, { status: 400 });
     }
@@ -84,31 +87,30 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: message }, { status: 400 });
     }
 
-    const user = await prisma.$transaction(async (tx) => {
-      const created = await tx.user.create({
-        data: {
-          name,
-          phone,
-          email,
-          role,
-          accountStatus: 'pending_payment',
-          ...(role === 'artisan'
-            ? { artisanProfile: { create: { trade: 'plumber' } } }
-            : {}),
-        },
-      });
+    const user = await withTransaction(async (tx) => {
+      const created = await queryOne<User>(
+        `INSERT INTO users (name, phone, email, role, account_status)
+         VALUES ($1, $2, $3, $4, 'pending_payment')
+         RETURNING *`,
+        [name, phone, email, role],
+        tx,
+      );
+      if (!created) throw new Error('Unable to create user.');
 
-      await tx.signupPayment.create({
-        data: {
-          userId: created.id,
-          methodId: method.id,
-          amount,
-          role,
-          reference,
-          proofUrl,
-          status: 'pending',
-        },
-      });
+      if (role === 'artisan') {
+        await queryOne(
+          `INSERT INTO artisan_profiles (user_id, trade) VALUES ($1, 'plumber')`,
+          [created.id],
+          tx,
+        );
+      }
+
+      await queryOne(
+        `INSERT INTO signup_payments (user_id, method_id, amount, role, reference, proof_url, status)
+         VALUES ($1, $2, $3, $4, $5, $6, 'pending')`,
+        [created.id, method.id, amount, role, reference, proofUrl],
+        tx,
+      );
 
       return created;
     });

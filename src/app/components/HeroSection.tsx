@@ -9,7 +9,6 @@ type PublicStats = {
   jobsCompleted: number;
   artisansApproved: number;
   averageRating: number | null;
-  reviewCount: number;
 };
 
 function formatCount(n: number) {
@@ -26,15 +25,6 @@ export default function HeroSection() {
       .then((data) => setStats(data))
       .catch(() => setStats(null));
   }, []);
-
-  const ratingLabel =
-    stats?.averageRating != null
-      ? String(stats.averageRating)
-      : '—';
-  const reviewLabel =
-    stats && stats.reviewCount > 0
-      ? `(${stats.reviewCount} review${stats.reviewCount === 1 ? '' : 's'})`
-      : '(new on Fixora)';
 
   return (
     <section
@@ -61,22 +51,7 @@ export default function HeroSection() {
       />
 
       <div className="relative z-10 flex flex-col justify-end min-h-[100svh] pb-10 pt-28 sm:pb-16 sm:pt-32 px-5 sm:px-6 md:px-12 lg:px-20 max-w-7xl mx-auto w-full">
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-6 sm:mb-8 animate-enter delay-100">
-          <div className="flex items-center gap-1.5 sm:gap-2 bg-white text-secondary px-3 sm:px-4 py-1.5 rounded-full text-xs sm:text-sm font-bold shadow-lg">
-            <Icon name="StarIcon" variant="solid" size={14} className="text-primary shrink-0" />
-            <span>{ratingLabel}</span>
-            <span className="text-muted-foreground font-medium">{reviewLabel}</span>
-          </div>
-          <div className="flex items-center gap-1.5 sm:gap-2 glass-panel text-white px-3 sm:px-4 py-1.5 rounded-full text-xs sm:text-sm font-medium">
-            <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse shrink-0" />
-            <span>Ghana · Verified artisans</span>
-          </div>
-          <div className="glass-panel text-white px-3 sm:px-4 py-1.5 rounded-full text-xs sm:text-sm font-medium">
-            Escrow-protected bookings
-          </div>
-        </div>
-
-        <h1 className="text-hero-xl font-extrabold text-white max-w-4xl mb-4 sm:mb-6 animate-enter delay-200">
+        <h1 className="text-hero-xl font-extrabold text-white max-w-4xl mb-4 sm:mb-6 animate-enter delay-100">
           Your Home,
           <br />
           Fixed Right.

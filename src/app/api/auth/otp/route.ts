@@ -5,7 +5,7 @@ import { isDatabaseConfigured } from '@/lib/db';
 export async function POST(request: Request) {
   try {
     if (!isDatabaseConfigured()) {
-      return NextResponse.json({ error: 'DATABASE_URL is not set.' }, { status: 503 });
+      return NextResponse.json({ error: 'Database is not configured.' }, { status: 503 });
     }
 
     const body = (await request.json()) as { phone?: string; purpose?: 'login' | 'signup' };

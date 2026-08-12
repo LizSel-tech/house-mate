@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { mapSmileStatusToKyc, verifySmileWebhookSignature } from '@/lib/kyc/smile-identity';
-import { prisma } from '@/lib/db';
+import { query, queryOne, withTransaction } from '@/lib/db';
+import type { KycVerification } from '@/types/db';
 
 /**
  * Smile Identity webhook receiver.
@@ -43,24 +44,24 @@ export async function POST(request: Request) {
     ((payload.ResultCode as string) && String(payload.ResultCode)) ||
     undefined;
 
-  // Prefer partner job id (our kyc id) then provider job id
   const kyc =
     (partnerJobId &&
-      (await prisma.kycVerification.findUnique({ where: { id: partnerJobId } }))) ||
+      (await queryOne<KycVerification>(`SELECT * FROM kyc_verifications WHERE id = $1`, [
+        partnerJobId,
+      ]))) ||
     (jobId &&
-      (await prisma.kycVerification.findFirst({
-        where: { OR: [{ id: jobId }, { providerJobId: jobId }] },
-      })));
+      (await queryOne<KycVerification>(
+        `SELECT * FROM kyc_verifications WHERE id = $1 OR provider_job_id = $1 LIMIT 1`,
+        [jobId],
+      )));
 
   if (!kyc) {
     return NextResponse.json({ error: 'KYC job not found.' }, { status: 404 });
   }
 
-  // Classic ResultCode mapping fallback
   let mapped = mapSmileStatusToKyc(smileStatus);
   if (mapped === 'pending' && payload.ResultCode) {
     const code = String(payload.ResultCode);
-    // Smile classic success codes often start with 0810 / 0820 family; treat 08xx approved patterns loosely
     mapped = code.startsWith('08') ? 'verified' : 'rejected';
   }
 
@@ -76,30 +77,43 @@ export async function POST(request: Request) {
     (payload.PartnerParams as object) ||
     null;
 
-  await prisma.$transaction(async (tx) => {
-    await tx.kycVerification.update({
-      where: { id: kyc.id },
-      data: {
-        status: mapped === 'pending' ? 'pending' : mapped,
-        failureReason: mapped === 'verified' ? null : reason,
-        extractedFields: extracted || undefined,
-        providerRawResult: payload,
-        providerJobId: jobId || kyc.providerJobId,
-        completedAt: mapped === 'pending' ? null : new Date(),
-      },
-    });
+  const status = mapped === 'pending' ? 'pending' : mapped;
+
+  await withTransaction(async (tx) => {
+    await query(
+      `UPDATE kyc_verifications
+       SET status = $1,
+           failure_reason = $2,
+           extracted_fields = COALESCE($3::jsonb, extracted_fields),
+           provider_raw_result = $4::jsonb,
+           provider_job_id = COALESCE($5, provider_job_id),
+           completed_at = $6
+       WHERE id = $7`,
+      [
+        status,
+        mapped === 'verified' ? null : reason,
+        extracted ? JSON.stringify(extracted) : null,
+        JSON.stringify(payload),
+        jobId || kyc.providerJobId,
+        mapped === 'pending' ? null : new Date(),
+        kyc.id,
+      ],
+      tx,
+    );
 
     if (kyc.artisanId) {
       if (mapped === 'verified') {
-        await tx.artisanProfile.update({
-          where: { id: kyc.artisanId },
-          data: { verificationStatus: 'approved' },
-        });
+        await query(
+          `UPDATE artisan_profiles SET verification_status = 'approved' WHERE id = $1`,
+          [kyc.artisanId],
+          tx,
+        );
       } else if (mapped === 'rejected' || mapped === 'error') {
-        await tx.artisanProfile.update({
-          where: { id: kyc.artisanId },
-          data: { verificationStatus: 'rejected' },
-        });
+        await query(
+          `UPDATE artisan_profiles SET verification_status = 'rejected' WHERE id = $1`,
+          [kyc.artisanId],
+          tx,
+        );
       }
     }
   });
