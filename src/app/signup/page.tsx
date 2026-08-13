@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import AuthShell from '@/components/auth/AuthShell';
 import Icon from '@/components/ui/AppIcon';
+import { sanitizePhoneInput } from '@/lib/auth/session-token';
 import type { UserRole } from '@/types/auth';
 
 type PaymentMethod = {
@@ -87,7 +88,7 @@ export default function SignupPage() {
   return (
     <AuthShell
       title="Create your account"
-      subtitle="Pay the signup fee, upload proof, and wait for admin confirmation — then log in with OTP."
+      subtitle="Pay the signup fee, upload proof, and wait for admin confirmation — then check your email for an OTP to log in."
     >
       {success ? (
         <div className="space-y-5">
@@ -153,21 +154,25 @@ export default function SignupPage() {
             <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Phone number</label>
             <input
               type="tel"
+              inputMode="numeric"
+              autoComplete="tel"
+              pattern="[0-9\s]*"
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
+              onChange={(e) => setPhone(sanitizePhoneInput(e.target.value))}
               placeholder="024 123 4567"
               className="w-full px-4 py-3.5 rounded-2xl border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
               required
             />
           </div>
           <div className="flex flex-col gap-2">
-            <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Email (optional)</label>
+            <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Email</label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="ama@email.com"
               className="w-full px-4 py-3.5 rounded-2xl border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              required
             />
           </div>
 

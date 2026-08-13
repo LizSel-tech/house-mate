@@ -60,9 +60,11 @@ export default function AdminPaymentsPage() {
       }
       if (status === 'confirmed') {
         setMessage(
-          data.otp?.devCode
-            ? `Payment confirmed. OTP sent (dev: ${data.otp.devCode}).`
-            : 'Payment confirmed. OTP issued to the user.'
+          data.warning
+            ? `Payment confirmed, but OTP email failed: ${data.warning}`
+            : data.otp?.email
+              ? `Payment confirmed. OTP emailed to ${data.otp.email}.`
+              : 'Payment confirmed. OTP emailed to the user.',
         );
       } else {
         setMessage('Payment rejected.');

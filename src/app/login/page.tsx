@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { FormEvent, Suspense, useState } from 'react';
 import AuthShell from '@/components/auth/AuthShell';
 import { PORTAL_HOME } from '@/lib/auth/constants';
+import { sanitizePhoneInput } from '@/lib/auth/session-token';
 import type { UserRole } from '@/types/auth';
 
 function LoginForm() {
@@ -15,7 +16,7 @@ function LoginForm() {
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
   const [otpSent, setOtpSent] = useState(false);
-  const [devCode, setDevCode] = useState('');
+  const [otpHint, setOtpHint] = useState('');
   const [demoAdmin, setDemoAdmin] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -28,14 +29,18 @@ function LoginForm() {
       const res = await fetch('/api/auth/otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone, purpose: 'login' }),
+        body: JSON.stringify({ phone, purpose: 'login', demoAdmin }),
       });
       const data = await res.json();
       if (!res.ok) {
         setError(data.error || 'Unable to send OTP.');
         return;
       }
-      setDevCode(data.devCode || '');
+      setOtpHint(
+        data.email
+          ? `Code sent to ${data.email}.`
+          : data.message || 'Check your email for the login code.',
+      );
       setOtpSent(true);
     } catch {
       setError('Something went wrong. Please try again.');
@@ -76,7 +81,7 @@ function LoginForm() {
   return (
     <AuthShell
       title="Welcome back"
-      subtitle="Log in after your signup payment is confirmed. We’ll send you to the right portal."
+      subtitle="After your signup payment is approved, we’ll email you a login code. You can also request a new OTP here."
     >
       {!otpSent ? (
         <form onSubmit={sendOtp} className="flex flex-col gap-5">
@@ -87,8 +92,11 @@ function LoginForm() {
             <input
               id="phone"
               type="tel"
+              inputMode="numeric"
+              autoComplete="tel"
+              pattern="[0-9\s]*"
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
+              onChange={(e) => setPhone(sanitizePhoneInput(e.target.value))}
               placeholder="024 123 4567"
               className="w-full px-4 py-3 rounded-2xl border border-border bg-background text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
               required
@@ -124,14 +132,11 @@ function LoginForm() {
       ) : (
         <form onSubmit={handleLogin} className="flex flex-col gap-5">
           <p className="text-sm text-muted-foreground">
-            Code sent to <span className="font-semibold text-foreground">{phone}</span>.
-            {devCode ? (
+            {otpHint || (
               <>
-                {' '}
-                Dev OTP:{' '}
-                <span className="font-mono font-semibold text-foreground">{devCode}</span>
+                Code sent for <span className="font-semibold text-foreground">{phone}</span>.
               </>
-            ) : null}
+            )}
           </p>
 
           <div className="flex flex-col gap-2">
@@ -142,8 +147,9 @@ function LoginForm() {
               id="otp"
               type="text"
               inputMode="numeric"
+              pattern="[0-9]*"
               value={otp}
-              onChange={(e) => setOtp(e.target.value)}
+              onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
               placeholder="6-digit code"
               className="w-full px-4 py-3 rounded-2xl border border-border bg-background text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring tracking-widest"
               required
@@ -169,7 +175,7 @@ function LoginForm() {
             onClick={() => {
               setOtpSent(false);
               setOtp('');
-              setDevCode('');
+              setOtpHint('');
               setError('');
             }}
             className="text-sm font-medium text-muted-foreground hover:text-foreground"

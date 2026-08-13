@@ -34,6 +34,12 @@ export async function POST(request: Request) {
     if (!name || !phoneRaw) {
       return NextResponse.json({ error: 'Name and phone are required.' }, { status: 400 });
     }
+    if (!emailRaw || !emailRaw.includes('@')) {
+      return NextResponse.json(
+        { error: 'A valid email is required so we can send your login OTP after payment approval.' },
+        { status: 400 },
+      );
+    }
     if (role !== 'user' && role !== 'artisan') {
       return NextResponse.json(
         { error: 'Choose Service User or Service Provider.' },
@@ -54,7 +60,7 @@ export async function POST(request: Request) {
     }
 
     const phone = normalizePhone(phoneRaw) || phoneRaw;
-    const email = emailRaw || null;
+    const email = emailRaw;
 
     const existing = await queryOne<User>(
       `SELECT * FROM users WHERE phone = $1 OR phone = $2 LIMIT 1`,
@@ -134,7 +140,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       ok: true,
       message:
-        'Registration submitted. An admin will confirm your payment, then you’ll receive an OTP to log in.',
+        'Registration submitted. An admin will confirm your payment, then you’ll receive an OTP by email to log in.',
       phone,
       amount,
       persistence: 'postgres',

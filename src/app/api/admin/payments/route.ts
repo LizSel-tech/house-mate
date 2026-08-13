@@ -4,8 +4,8 @@ import {
   ensureDefaultPaymentMethods,
   notifyAdmin,
 } from '@/lib/admin-notify';
-import { issueOtp } from '@/lib/auth/otp';
-import { query, queryData, queryDataOne, withTransaction } from '@/lib/db';
+import { issueOtpToUser } from '@/lib/auth/otp';
+import { query, queryData, queryDataOne, queryOne, withTransaction } from '@/lib/db';
 import type { PaymentMethod, SignupPayment, User } from '@/types/db';
 
 export async function GET() {
@@ -97,6 +97,7 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ ok: true, status: 'rejected' });
   }
 
+  // Confirm payment → activate account → email OTP for login
   await withTransaction(async (tx) => {
     await query(
       `UPDATE signup_payments
@@ -111,23 +112,52 @@ export async function PATCH(request: Request) {
     await query(`UPDATE users SET account_status = 'active' WHERE id = $1`, [payment.userId], tx);
   });
 
-  const otp = await issueOtp(payment.user.phone, 'login');
+  const freshUser = await queryOne<User>(`SELECT * FROM users WHERE id = $1`, [payment.userId]);
+
+  let otpResult: { phone: string; email?: string; message: string; devCode?: string } | null = null;
+  let otpError: string | null = null;
+
+  try {
+    if (!freshUser) throw new Error('Activated user not found.');
+    otpResult = await issueOtpToUser({
+      user: freshUser,
+      purpose: 'login',
+      reason: 'payment_approved',
+    });
+  } catch (err) {
+    otpError = err instanceof Error ? err.message : 'Unable to email OTP.';
+  }
 
   await notifyAdmin({
     type: 'signup_payment_confirmed',
     title: 'Signup payment confirmed',
-    body: `${payment.user.name} activated. OTP issued to ${payment.user.phone}.`,
+    body: otpResult
+      ? `${payment.user.name} activated. OTP emailed to ${otpResult.email || payment.user.email}.`
+      : `${payment.user.name} activated, but OTP email failed: ${otpError}`,
     href: '/admin/payments',
-    meta: { userId: payment.userId, ...(otp.devCode ? { devCode: otp.devCode } : {}) },
+    meta: {
+      userId: payment.userId,
+      ...(otpResult?.devCode ? { devCode: otpResult.devCode } : {}),
+      ...(otpError ? { otpError } : {}),
+    },
   });
+
+  if (otpError) {
+    return NextResponse.json({
+      ok: true,
+      status: 'confirmed',
+      warning: otpError,
+      message: 'Payment confirmed, but the OTP email could not be sent.',
+    });
+  }
 
   return NextResponse.json({
     ok: true,
     status: 'confirmed',
     otp: {
-      phone: otp.phone,
-      message: otp.message,
-      ...(otp.devCode ? { devCode: otp.devCode } : {}),
+      phone: otpResult!.phone,
+      email: otpResult!.email,
+      message: otpResult!.message,
     },
   });
 }

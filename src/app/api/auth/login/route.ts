@@ -41,11 +41,15 @@ export async function POST(request: Request) {
     let user = await queryOne<User>(`SELECT * FROM users WHERE phone = $1 LIMIT 1`, [phone]);
 
     if (!user && body.demoAdmin) {
+      const adminEmail =
+        process.env.DEMO_ADMIN_EMAIL?.trim() ||
+        process.env.MAIL_FROM_ADDRESS?.trim() ||
+        'admin@localhost';
       user = await queryOne<User>(
-        `INSERT INTO users (name, phone, role, account_status)
-         VALUES ('Platform Admin', $1, 'admin', 'active')
+        `INSERT INTO users (name, phone, email, role, account_status)
+         VALUES ('Platform Admin', $1, $2, 'admin', 'active')
          RETURNING *`,
-        [phone],
+        [phone, adminEmail.replace(/^null$/i, 'admin@localhost')],
       );
     }
 

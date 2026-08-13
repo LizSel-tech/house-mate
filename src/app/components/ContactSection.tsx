@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import Icon from '@/components/ui/AppIcon';
+import { sanitizePhoneInput } from '@/lib/auth/session-token';
 
 interface FormState {
   name: string;
@@ -52,7 +53,11 @@ export default function ContactSection() {
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
-    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+    const { name, value } = e.target;
+    setForm((prev) => ({
+      ...prev,
+      [name]: name === 'phone' ? sanitizePhoneInput(value) : value,
+    }));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -123,6 +128,9 @@ export default function ContactSection() {
                         id="phone"
                         name="phone"
                         type="tel"
+                        inputMode="numeric"
+                        autoComplete="tel"
+                        pattern="[0-9\s]*"
                         value={form.phone}
                         onChange={handleChange}
                         placeholder="024 123 4567"

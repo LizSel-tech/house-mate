@@ -1,7 +1,8 @@
 import { createHash, randomInt, timingSafeEqual } from 'crypto';
 import { query, queryOne } from '@/lib/db';
 import { normalizePhone } from '@/lib/auth/session-token';
-import type { OtpCode } from '@/types/db';
+import { isMailConfigured, sendOtpEmail } from '@/lib/mail';
+import type { OtpCode, User } from '@/types/db';
 
 type OtpPurpose = 'login' | 'signup';
 
@@ -23,7 +24,11 @@ function safeEqualHash(a: string, b: string): boolean {
   return timingSafeEqual(bufA, bufB);
 }
 
-export async function issueOtp(phoneRaw: string, purpose: OtpPurpose = 'login') {
+function shouldExposeDevCode(): boolean {
+  return process.env.OTP_DEV_MODE === 'true';
+}
+
+export async function createOtpRecord(phoneRaw: string, purpose: OtpPurpose = 'login') {
   const phone = normalizePhone(phoneRaw) || phoneRaw.trim();
   if (!phone) {
     throw new Error('Phone number is required.');
@@ -46,15 +51,45 @@ export async function issueOtp(phoneRaw: string, purpose: OtpPurpose = 'login') 
     [phone, codeHash, purpose, expiresAt],
   );
 
-  const exposeCode = process.env.NODE_ENV !== 'production' || process.env.OTP_DEV_MODE === 'true';
+  return { phone, code, expiresAt };
+}
+
+/** Create OTP, email it to the user, and never return the plaintext code unless OTP_DEV_MODE=true. */
+export async function issueOtpToUser(input: {
+  user: Pick<User, 'phone' | 'email' | 'name'>;
+  purpose?: OtpPurpose;
+  reason: 'payment_approved' | 'login';
+}) {
+  const email = input.user.email?.trim();
+  if (!email) {
+    throw new Error('This account has no email address. OTP cannot be delivered.');
+  }
+  if (!isMailConfigured()) {
+    throw new Error('Mail is not configured. Set MAIL_HOST and MAIL_FROM_ADDRESS.');
+  }
+
+  const { phone, code, expiresAt } = await createOtpRecord(
+    input.user.phone,
+    input.purpose || 'login',
+  );
+
+  await sendOtpEmail({
+    to: email,
+    name: input.user.name,
+    code,
+    reason: input.reason,
+  });
+
+  const exposeCode = shouldExposeDevCode();
 
   return {
     phone,
+    email,
     expiresAt,
     ...(exposeCode ? { devCode: code } : {}),
     message: exposeCode
-      ? `Dev OTP: ${code} (valid 5 minutes)`
-      : 'OTP sent to your phone.',
+      ? `OTP emailed to ${email} (dev: ${code})`
+      : `OTP sent to ${email}.`,
   };
 }
 
