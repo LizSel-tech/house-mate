@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import AppLogo from '@/components/ui/AppLogo';
 import Icon from '@/components/ui/AppIcon';
+import { Button } from '@/components/ui/Button';
 import type { SessionUser } from '@/types/auth';
 import { ROLE_LABELS } from '@/lib/auth/constants';
 
@@ -60,6 +61,29 @@ export default function PortalShell({
       setLoggingOut(false);
       setLogoutOpen(false);
     }
+  };
+
+  const chatHref = user.role === 'user' ? '/user/chat' : user.role === 'artisan' ? '/provider/chat' : null;
+  const chatActive = Boolean(chatHref && pathname.startsWith(chatHref));
+
+  const ChatButton = ({ tone = 'light' }: { tone?: 'light' | 'dark' }) => {
+    if (!chatHref) return null;
+    const onDark = tone === 'dark';
+    return (
+      <Link
+        href={chatHref}
+        aria-label="Open chat"
+        className={`relative w-10 h-10 rounded-full flex items-center justify-center transition-colors ${
+          chatActive
+            ? 'bg-primary text-primary-foreground'
+            : onDark
+              ? 'bg-white/10 text-white hover:bg-white/20'
+              : 'bg-primary text-primary-foreground hover:bg-accent shadow-sm'
+        }`}
+      >
+        <Icon name="ChatBubbleLeftRightIcon" size={18} />
+      </Link>
+    );
   };
 
   return (
@@ -136,19 +160,22 @@ export default function PortalShell({
       </aside>
 
       {/* Mobile top bar */}
-      <div className="md:hidden sticky top-0 z-40 bg-secondary text-white px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-2">
+      <div className="md:hidden sticky top-0 z-40 bg-secondary text-white px-4 py-3 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 min-w-0">
           <AppLogo size={28} />
-          <span className="font-bold text-sm">{title}</span>
+          <span className="font-bold text-sm truncate">{title}</span>
         </div>
-        <button
-          type="button"
-          aria-label="Open menu"
-          onClick={() => setMenuOpen(true)}
-          className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center"
-        >
-          <Icon name="Bars3Icon" size={20} />
-        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          {!chatActive && <ChatButton tone="dark" />}
+          <button
+            type="button"
+            aria-label="Open menu"
+            onClick={() => setMenuOpen(true)}
+            className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center"
+          >
+            <Icon name="Bars3Icon" size={20} />
+          </button>
+        </div>
       </div>
 
       {menuOpen && (
@@ -187,8 +214,34 @@ export default function PortalShell({
         </div>
       )}
 
-      <main className="flex-1 min-w-0 min-h-0 overflow-y-auto bg-[radial-gradient(ellipse_at_top,_rgba(217,119,6,0.06),_transparent_55%)]">
-        <div className="max-w-5xl mx-auto px-5 sm:px-8 py-8 md:py-10">{children}</div>
+      <main className="flex-1 min-w-0 min-h-0 flex flex-col bg-[radial-gradient(ellipse_at_top,_rgba(217,119,6,0.06),_transparent_55%)]">
+        {chatHref && (
+          <header className="hidden md:flex shrink-0 h-16 items-center px-5 sm:px-8 border-b border-border/80 bg-background/85 backdrop-blur-md">
+            {chatActive ? (
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Messages</p>
+                <p className="text-sm font-bold text-foreground">Chat</p>
+              </div>
+            ) : (
+              <div className="ml-auto">
+                <ChatButton />
+              </div>
+            )}
+          </header>
+        )}
+        <div
+          className={
+            chatActive
+              ? 'flex-1 min-h-0 overflow-hidden p-0 md:p-5 lg:p-6'
+              : 'flex-1 min-h-0 overflow-y-auto'
+          }
+        >
+          {chatActive ? (
+            <div className="h-full min-h-0">{children}</div>
+          ) : (
+            <div className="max-w-5xl mx-auto px-5 sm:px-8 py-8 md:py-10">{children}</div>
+          )}
+        </div>
       </main>
 
       {logoutOpen && (
@@ -215,22 +268,18 @@ export default function PortalShell({
               Are you sure you want to sign out of your {ROLE_LABELS[user.role].toLowerCase()} account?
             </p>
             <div className="mt-6 flex flex-col-reverse sm:flex-row gap-3">
-              <button
+              <Button
                 type="button"
+                variant="outline"
                 onClick={() => setLogoutOpen(false)}
                 disabled={loggingOut}
-                className="flex-1 px-4 py-3 rounded-full border border-border text-sm font-bold uppercase tracking-widest text-foreground hover:bg-muted transition-colors disabled:opacity-60 min-h-[44px]"
+                className="flex-1"
               >
                 Cancel
-              </button>
-              <button
-                type="button"
-                onClick={confirmLogout}
-                disabled={loggingOut}
-                className="flex-1 px-4 py-3 rounded-full bg-primary text-primary-foreground text-sm font-bold uppercase tracking-widest hover:bg-accent transition-colors disabled:opacity-60 min-h-[44px]"
-              >
-                {loggingOut ? 'Signing out…' : 'Sign out'}
-              </button>
+              </Button>
+              <Button type="button" loading={loggingOut} onClick={confirmLogout} className="flex-1">
+                Sign out
+              </Button>
             </div>
           </div>
         </div>

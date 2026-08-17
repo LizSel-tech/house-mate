@@ -5,24 +5,28 @@ import Icon from '@/components/ui/AppIcon';
 import AppImage from '@/components/ui/AppImage';
 
 const steps = [
-{
-  number: '01',
-  title: 'Describe the Job',
-  description: 'Call or fill out the quick form. Tell us what needs fixing — no lengthy questionnaires, just the basics.',
-  icon: 'ChatBubbleBottomCenterTextIcon'
-},
-{
-  number: '02',
-  title: 'Get a Clear Quote',
-  description: 'Receive an honest, upfront price within the hour. No hidden fees, no surprises when the invoice arrives.',
-  icon: 'DocumentCheckIcon'
-},
-{
-  number: '03',
-  title: 'We Show Up & Fix It',
-  description: 'Your Fixora pro arrives on time, does the work right, cleans up completely, and follows up to make sure you\'re happy.',
-  icon: 'CheckBadgeIcon'
-}];
+  {
+    number: '01',
+    title: 'Book an artisan',
+    description:
+      'Tell us what needs fixing — plumbing, electrical, carpentry, and more. Pick a verified Fixora pro near you.',
+    icon: 'ChatBubbleBottomCenterTextIcon',
+  },
+  {
+    number: '02',
+    title: 'They come to your home',
+    description:
+      'Your artisan arrives on time with the right tools. Upfront pricing, no surprises on the invoice.',
+    icon: 'WrenchScrewdriverIcon',
+  },
+  {
+    number: '03',
+    title: 'Confirm when it’s done',
+    description:
+      'They finish the job, clean up, and you confirm. Most Ghana homes are sorted within 24 hours.',
+    icon: 'CheckBadgeIcon',
+  },
+];
 
 
 export default function HowItWorksSection() {
@@ -73,10 +77,10 @@ export default function HowItWorksSection() {
                 key={step.number}
                 className={`reveal ${i === 1 ? 'reveal-delay-200' : i === 2 ? 'reveal-delay-400' : ''} card-glow`}>
                 
-                  <div className="bg-card border border-border rounded-4xl p-5 sm:p-7 flex gap-4 sm:gap-5 items-start hover:border-primary/40 transition-colors duration-300">
+                  <div className="bg-card border border-border rounded-4xl p-6 sm:p-8 flex gap-4 sm:gap-5 items-start hover:border-primary/40 hover:shadow-md transition-all duration-300">
                     <div className="shrink-0">
                       <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
-                        <Icon name={step.icon as any} size={22} />
+                        <Icon name={step.icon} size={22} />
                       </div>
                     </div>
                     <div className="flex-1">
@@ -130,7 +134,7 @@ export default function HowItWorksSection() {
                 <div>
                   <h3 className="text-xl font-bold text-white mb-2">100% Satisfaction Guarantee</h3>
                   <p className="text-white/75 text-sm leading-relaxed">
-                    If you&apos;re not happy with the work, we come back and fix it — no charge. That&apos;s our promise to every Portland homeowner.
+                    If you&apos;re not happy with the work, we come back and fix it — no charge. That&apos;s our promise to every Ghana household.
                   </p>
                 </div>
                 <a

@@ -2,6 +2,8 @@
 
 import { FormEvent, useEffect, useState } from 'react';
 import Icon from '@/components/ui/AppIcon';
+import { Button } from '@/components/ui/Button';
+import Select from '@/components/ui/Select';
 
 type Method = {
   id: string;
@@ -23,6 +25,9 @@ export default function AdminSettingsPage() {
   const [methods, setMethods] = useState<Method[]>([]);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [savingFees, setSavingFees] = useState(false);
+  const [savingMethod, setSavingMethod] = useState(false);
+  const [busyId, setBusyId] = useState('');
   const [editing, setEditing] = useState<Method | null>(null);
   const [form, setForm] = useState({
     name: '',
@@ -54,22 +59,27 @@ export default function AdminSettingsPage() {
     e.preventDefault();
     setMessage('');
     setError('');
-    const res = await fetch('/api/admin/settings', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        commissionRate,
-        subscriptionFee,
-        userSignupFee,
-        artisanSignupFee,
-      }),
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      setError(data.error || 'Save failed.');
-      return;
+    setSavingFees(true);
+    try {
+      const res = await fetch('/api/admin/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          commissionRate,
+          subscriptionFee,
+          userSignupFee,
+          artisanSignupFee,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || 'Save failed.');
+        return;
+      }
+      setMessage('Fees saved.');
+    } finally {
+      setSavingFees(false);
     }
-    setMessage('Fees saved.');
   };
 
   const resetMethodForm = () => {
@@ -89,19 +99,24 @@ export default function AdminSettingsPage() {
     e.preventDefault();
     setError('');
     setMessage('');
-    const res = await fetch('/api/admin/payment-methods', {
-      method: editing ? 'PATCH' : 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(editing ? { id: editing.id, ...form } : form),
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      setError(data.error || 'Could not save method.');
-      return;
+    setSavingMethod(true);
+    try {
+      const res = await fetch('/api/admin/payment-methods', {
+        method: editing ? 'PATCH' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editing ? { id: editing.id, ...form } : form),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || 'Could not save method.');
+        return;
+      }
+      setMessage(editing ? 'Payment method updated.' : 'Payment method added.');
+      resetMethodForm();
+      await load();
+    } finally {
+      setSavingMethod(false);
     }
-    setMessage(editing ? 'Payment method updated.' : 'Payment method added.');
-    resetMethodForm();
-    await load();
   };
 
   const editMethod = (m: Method) => {
@@ -118,12 +133,17 @@ export default function AdminSettingsPage() {
   };
 
   const toggleMethod = async (m: Method) => {
-    await fetch('/api/admin/payment-methods', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: m.id, isActive: !m.isActive }),
-    });
-    await load();
+    setBusyId(m.id);
+    try {
+      await fetch('/api/admin/payment-methods', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: m.id, isActive: !m.isActive }),
+      });
+      await load();
+    } finally {
+      setBusyId('');
+    }
   };
 
   return (
@@ -158,12 +178,9 @@ export default function AdminSettingsPage() {
             />
           </div>
         ))}
-        <button
-          type="submit"
-          className="sm:col-span-2 bg-primary text-primary-foreground px-6 py-3 rounded-full text-xs font-bold uppercase tracking-widest w-fit"
-        >
+        <Button type="submit" loading={savingFees} className="sm:col-span-2 w-fit">
           Save fees
-        </button>
+        </Button>
       </form>
 
       <section className="space-y-4">
@@ -188,16 +205,16 @@ export default function AdminSettingsPage() {
               className="px-4 py-3 rounded-2xl border border-border bg-background text-sm"
               required
             />
-            <select
+            <Select
               value={form.type}
-              onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))}
-              className="px-4 py-3 rounded-2xl border border-border bg-background text-sm"
-            >
-              <option value="mtn_momo">MTN MoMo</option>
-              <option value="telecel_cash">Telecel Cash</option>
-              <option value="bank_transfer">Bank transfer</option>
-              <option value="other">Other</option>
-            </select>
+              onChange={(value) => setForm((f) => ({ ...f, type: value }))}
+              options={[
+                { value: 'mtn_momo', label: 'MTN MoMo' },
+                { value: 'telecel_cash', label: 'Telecel Cash' },
+                { value: 'bank_transfer', label: 'Bank transfer' },
+                { value: 'other', label: 'Other' },
+              ]}
+            />
             <input
               value={form.accountName}
               onChange={(e) => setForm((f) => ({ ...f, accountName: e.target.value }))}
@@ -232,12 +249,9 @@ export default function AdminSettingsPage() {
             />
             Active on signup
           </label>
-          <button
-            type="submit"
-            className="bg-secondary text-secondary-foreground px-6 py-3 rounded-full text-xs font-bold uppercase tracking-widest"
-          >
+          <Button type="submit" variant="secondary" loading={savingMethod}>
             {editing ? 'Update method' : 'Add method'}
-          </button>
+          </Button>
         </form>
 
         <div className="space-y-3">
@@ -255,20 +269,18 @@ export default function AdminSettingsPage() {
                 </p>
               </div>
               <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => editMethod(m)}
-                  className="px-4 py-2 rounded-full border border-border text-xs font-bold uppercase tracking-widest"
-                >
+                <Button type="button" variant="outline" onClick={() => editMethod(m)} className="!min-h-[40px]">
                   Edit
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
+                  variant="outline"
+                  loading={busyId === m.id}
                   onClick={() => toggleMethod(m)}
-                  className="px-4 py-2 rounded-full border border-border text-xs font-bold uppercase tracking-widest"
+                  className="!min-h-[40px]"
                 >
                   {m.isActive ? 'Disable' : 'Enable'}
-                </button>
+                </Button>
               </div>
             </div>
           ))}

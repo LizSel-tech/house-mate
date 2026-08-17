@@ -2,6 +2,8 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import Icon from '@/components/ui/AppIcon';
+import { Button } from '@/components/ui/Button';
+import Select from '@/components/ui/Select';
 import { sanitizePhoneInput } from '@/lib/auth/session-token';
 
 interface FormState {
@@ -32,6 +34,7 @@ export default function ContactSection() {
     message: '',
   });
   const [submitted, setSubmitted] = useState(false);
+  const [sending, setSending] = useState(false);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -62,8 +65,11 @@ export default function ContactSection() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Backend connection point: POST form data to your API or email service
-    setSubmitted(true);
+    setSending(true);
+    window.setTimeout(() => {
+      setSending(false);
+      setSubmitted(true);
+    }, 600);
   };
 
   return (
@@ -159,18 +165,13 @@ export default function ContactSection() {
                     <label htmlFor="service" className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
                       Service Needed
                     </label>
-                    <select
-                      id="service"
+                    <Select
                       name="service"
                       value={form.service}
-                      onChange={handleChange}
-                      className="w-full px-4 py-3 rounded-2xl border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring transition"
-                    >
-                      <option value="">Select a service...</option>
-                      {serviceOptions.map((s) => (
-                        <option key={s} value={s}>{s}</option>
-                      ))}
-                    </select>
+                      onChange={(value) => setForm((prev) => ({ ...prev, service: value }))}
+                      placeholder="Select a service..."
+                      options={serviceOptions.map((s) => ({ value: s, label: s }))}
+                    />
                   </div>
 
                   <div className="flex flex-col gap-2">
@@ -189,13 +190,10 @@ export default function ContactSection() {
                     />
                   </div>
 
-                  <button
-                    type="submit"
-                    className="group flex items-center justify-center gap-3 bg-primary text-primary-foreground px-8 py-4 rounded-full font-bold text-sm uppercase tracking-widest hover:bg-accent transition-colors duration-300 w-full sm:w-auto min-h-[48px]"
-                  >
+                  <Button type="submit" loading={sending} className="w-full sm:w-auto px-8 py-4 min-h-[48px] text-sm">
                     Send My Request
-                    <Icon name="ArrowRightIcon" size={16} className="transition-transform duration-300 group-hover:translate-x-1" />
-                  </button>
+                    {!sending && <Icon name="ArrowRightIcon" size={16} />}
+                  </Button>
                 </form>
               )}
             </div>
@@ -213,10 +211,10 @@ export default function ContactSection() {
                 <div>
                   <p className="text-xs font-bold uppercase tracking-widest text-white/40 mb-1">Call or Text Directly</p>
                   <a
-                    href="tel:+15035550192"
+                    href="tel:+233302550192"
                     className="text-2xl font-extrabold text-white hover:text-primary transition-colors duration-200"
                   >
-                    (503) 555-0192
+                    030 255 0192
                   </a>
                   <p className="text-white/50 text-sm mt-2 leading-relaxed">
                     Mon–Sat, 7:00 AM – 7:00 PM<br />
@@ -261,7 +259,7 @@ export default function ContactSection() {
                   ].map((badge) => (
                     <div key={badge.text} className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
-                        <Icon name={badge.icon as any} size={16} />
+                        <Icon name={badge.icon} size={16} />
                       </div>
                       <span className="text-sm font-medium text-foreground">{badge.text}</span>
                     </div>

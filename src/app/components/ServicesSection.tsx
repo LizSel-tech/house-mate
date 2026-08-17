@@ -89,7 +89,7 @@ export default function ServicesSection() {
             <Link
               key={card.trade}
               href={`/signup`}
-              className={`reveal group rounded-3xl border border-border bg-card p-6 hover:border-primary/40 transition-colors ${
+              className={`reveal group rounded-4xl border border-border bg-card p-6 sm:p-7 shadow-sm hover:border-primary/50 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 ${
                 i === 1 ? 'reveal-delay-100' : i === 2 ? 'reveal-delay-200' : ''
               }`}
             >
@@ -109,7 +109,7 @@ export default function ServicesSection() {
           ))}
         </div>
 
-        <div className="mt-10 reveal flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 rounded-3xl bg-secondary text-secondary-foreground p-6 sm:p-8">
+        <div className="mt-10 reveal flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 rounded-4xl bg-secondary text-secondary-foreground p-6 sm:p-8">
           <div>
             <h3 className="text-lg font-bold">Ready to book?</h3>
             <p className="text-sm text-secondary-foreground/70 mt-1">

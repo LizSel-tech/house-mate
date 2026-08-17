@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Icon from '@/components/ui/AppIcon';
+import { Button } from '@/components/ui/Button';
 
 type Payment = {
   id: string;
@@ -191,22 +192,23 @@ export default function AdminPaymentsPage() {
 
               {p.status === 'pending' && (
                 <div className="flex flex-wrap gap-2">
-                  <button
+                  <Button
                     type="button"
-                    disabled={busyId === p.id}
+                    loading={busyId === p.id}
                     onClick={() => decide(p.id, 'confirmed')}
-                    className="px-5 py-2.5 rounded-full bg-primary text-primary-foreground text-xs font-bold uppercase tracking-widest disabled:opacity-60"
+                    className="!min-h-[40px]"
                   >
-                    {busyId === p.id ? 'Saving…' : 'Confirm & send OTP'}
-                  </button>
-                  <button
+                    Confirm & send OTP
+                  </Button>
+                  <Button
                     type="button"
+                    variant="outline"
                     disabled={busyId === p.id}
                     onClick={() => decide(p.id, 'rejected')}
-                    className="px-5 py-2.5 rounded-full border border-border text-xs font-bold uppercase tracking-widest disabled:opacity-60"
+                    className="!min-h-[40px]"
                   >
                     Reject
-                  </button>
+                  </Button>
                 </div>
               )}
             </div>

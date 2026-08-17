@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import AuthShell from '@/components/auth/AuthShell';
 import Icon from '@/components/ui/AppIcon';
+import { Button } from '@/components/ui/Button';
+import Select from '@/components/ui/Select';
 import { sanitizePhoneInput } from '@/lib/auth/session-token';
 import type { UserRole } from '@/types/auth';
 
@@ -189,19 +191,13 @@ export default function SignupPage() {
               <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
                 Payment method
               </label>
-              <select
+              <Select
                 value={methodId}
-                onChange={(e) => setMethodId(e.target.value)}
-                className="w-full px-4 py-3 rounded-2xl border border-border bg-background text-sm"
+                onChange={setMethodId}
+                placeholder={methods.length === 0 ? 'Loading methods…' : 'Select a method'}
+                options={methods.map((m) => ({ value: m.id, label: m.name }))}
                 required
-              >
-                {methods.length === 0 && <option value="">Loading methods…</option>}
-                {methods.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.name}
-                  </option>
-                ))}
-              </select>
+              />
             </div>
 
             {selected && (
@@ -261,13 +257,9 @@ export default function SignupPage() {
             <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl px-4 py-3">{error}</p>
           )}
 
-          <button
-            type="submit"
-            disabled={loading || methods.length === 0}
-            className="w-full bg-primary text-primary-foreground py-3.5 rounded-full font-bold text-sm uppercase tracking-widest hover:bg-accent transition-colors min-h-[48px] disabled:opacity-60"
-          >
+          <Button type="submit" loading={loading} disabled={methods.length === 0} className="w-full min-h-[48px] text-sm">
             {loading ? 'Submitting…' : 'Submit registration'}
-          </button>
+          </Button>
         </form>
       )}
 

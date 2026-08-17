@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Icon from '@/components/ui/AppIcon';
+import { Button } from '@/components/ui/Button';
 
 function initials(name?: string | null) {
   if (!name) return '?';
@@ -110,25 +111,27 @@ export default function ProfileAvatarEditor({
 
         <div className="flex flex-col gap-2 min-w-0">
           <div className="flex flex-wrap gap-2">
-            <button
+            <Button
               type="button"
-              disabled={loading}
+              variant="outline"
+              loading={loading}
               onClick={() => inputRef.current?.click()}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-full border border-border text-xs font-bold uppercase tracking-widest text-foreground hover:bg-muted transition-colors disabled:opacity-60"
+              className="!min-h-[36px] !px-3 !py-2"
             >
               <Icon name="PhotoIcon" size={14} />
               {preview ? 'Change' : 'Upload'}
-            </button>
+            </Button>
             {preview && (
-              <button
+              <Button
                 type="button"
-                disabled={loading}
+                variant="outline"
+                loading={loading}
                 onClick={remove}
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-full border border-red-200 text-xs font-bold uppercase tracking-widest text-red-600 hover:bg-red-50 transition-colors disabled:opacity-60"
+                className="!min-h-[36px] !px-3 !py-2 !border-red-200 !text-red-600 hover:!bg-red-50"
               >
                 <Icon name="TrashIcon" size={14} />
                 Remove
-              </button>
+              </Button>
             )}
           </div>
           <p className="text-xs text-muted-foreground">

@@ -2,6 +2,8 @@
 
 import { FormEvent, useEffect, useState } from 'react';
 import Icon from '@/components/ui/AppIcon';
+import { Button } from '@/components/ui/Button';
+import Select from '@/components/ui/Select';
 
 type Service = {
   id: string;
@@ -20,6 +22,7 @@ export default function ProviderServicesPage() {
   const [priceUnit, setPriceUnit] = useState('job');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [busyId, setBusyId] = useState('');
 
   const load = async () => {
     const res = await fetch('/api/provider/services');
@@ -56,18 +59,28 @@ export default function ProviderServicesPage() {
   };
 
   const toggleActive = async (service: Service) => {
-    await fetch(`/api/provider/services/${service.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ isActive: !service.isActive }),
-    });
-    await load();
+    setBusyId(service.id);
+    try {
+      await fetch(`/api/provider/services/${service.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isActive: !service.isActive }),
+      });
+      await load();
+    } finally {
+      setBusyId('');
+    }
   };
 
   const remove = async (id: string) => {
     if (!confirm('Delete this service?')) return;
-    await fetch(`/api/provider/services/${id}`, { method: 'DELETE' });
-    await load();
+    setBusyId(id);
+    try {
+      await fetch(`/api/provider/services/${id}`, { method: 'DELETE' });
+      await load();
+    } finally {
+      setBusyId('');
+    }
   };
 
   const activeCount = services.filter((s) => s.isActive).length;
@@ -144,25 +157,21 @@ export default function ProviderServicesPage() {
             </div>
             <div className="space-y-1.5">
               <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Unit</label>
-              <select
+              <Select
                 value={priceUnit}
-                onChange={(e) => setPriceUnit(e.target.value)}
-                className="w-full px-4 py-3 rounded-2xl border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-              >
-                <option value="job">Per job</option>
-                <option value="hour">Per hour</option>
-                <option value="visit">Per visit</option>
-              </select>
+                onChange={setPriceUnit}
+                options={[
+                  { value: 'job', label: 'Per job' },
+                  { value: 'hour', label: 'Per hour' },
+                  { value: 'visit', label: 'Per visit' },
+                ]}
+              />
             </div>
           </div>
           {error && <p className="text-sm text-red-600">{error}</p>}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-primary text-primary-foreground px-6 py-3 rounded-full text-xs font-bold uppercase tracking-widest disabled:opacity-60 min-h-[44px]"
-          >
+          <Button type="submit" loading={loading} className="w-full">
             {loading ? 'Saving…' : 'Save service'}
-          </button>
+          </Button>
         </form>
 
         <div className="lg:col-span-3 space-y-3">
@@ -212,20 +221,24 @@ export default function ProviderServicesPage() {
                   </div>
                 </div>
                 <div className="flex gap-2 shrink-0">
-                  <button
+                  <Button
                     type="button"
+                    variant="outline"
+                    loading={busyId === service.id}
                     onClick={() => toggleActive(service)}
-                    className="px-4 py-2 rounded-full border border-border text-xs font-bold uppercase tracking-widest hover:bg-muted transition-colors"
+                    className="!min-h-[40px]"
                   >
                     {service.isActive ? 'Disable' : 'Enable'}
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="button"
+                    variant="outline"
+                    disabled={busyId === service.id}
                     onClick={() => remove(service.id)}
-                    className="px-4 py-2 rounded-full border border-red-200 text-red-600 text-xs font-bold uppercase tracking-widest hover:bg-red-50 transition-colors"
+                    className="!min-h-[40px] !border-red-200 !text-red-600 hover:!bg-red-50"
                   >
                     Delete
-                  </button>
+                  </Button>
                 </div>
               </div>
             ))

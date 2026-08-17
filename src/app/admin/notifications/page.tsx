@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import Icon from '@/components/ui/AppIcon';
+import { Button } from '@/components/ui/Button';
 
 type Notification = {
   id: string;
@@ -17,6 +18,7 @@ type Notification = {
 export default function AdminNotificationsPage() {
   const [items, setItems] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [busy, setBusy] = useState('');
 
   const load = async () => {
     const res = await fetch('/api/admin/notifications');
@@ -32,21 +34,31 @@ export default function AdminNotificationsPage() {
   }, []);
 
   const markAll = async () => {
-    await fetch('/api/admin/notifications', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ markAllRead: true }),
-    });
-    await load();
+    setBusy('all');
+    try {
+      await fetch('/api/admin/notifications', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ markAllRead: true }),
+      });
+      await load();
+    } finally {
+      setBusy('');
+    }
   };
 
   const markOne = async (id: string) => {
-    await fetch('/api/admin/notifications', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id }),
-    });
-    await load();
+    setBusy(id);
+    try {
+      await fetch('/api/admin/notifications', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
+      await load();
+    } finally {
+      setBusy('');
+    }
   };
 
   return (
@@ -59,13 +71,9 @@ export default function AdminNotificationsPage() {
             Alerts for new registrations and signup payments ({unreadCount} unread).
           </p>
         </div>
-        <button
-          type="button"
-          onClick={markAll}
-          className="border border-border px-5 py-2.5 rounded-full text-xs font-bold uppercase tracking-widest"
-        >
+        <Button type="button" variant="outline" loading={busy === 'all'} onClick={markAll}>
           Mark all read
-        </button>
+        </Button>
       </div>
 
       {items.length === 0 ? (
@@ -98,13 +106,15 @@ export default function AdminNotificationsPage() {
                   </Link>
                 )}
                 {!n.readAt && (
-                  <button
+                  <Button
                     type="button"
+                    variant="ghost"
+                    loading={busy === n.id}
                     onClick={() => markOne(n.id)}
-                    className="text-xs font-bold uppercase tracking-widest text-muted-foreground"
+                    className="!min-h-0 !px-0 !py-0"
                   >
                     Mark read
-                  </button>
+                  </Button>
                 )}
               </div>
             </li>

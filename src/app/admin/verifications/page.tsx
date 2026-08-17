@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { Button } from '@/components/ui/Button';
 
 type Verification = {
   id: string;
@@ -194,22 +195,23 @@ export default function AdminVerificationsPage() {
                   ))}
                 </div>
                 <div className="flex gap-3">
-                  <button
+                  <Button
                     type="button"
-                    disabled={busyId === item.id}
+                    loading={busyId === item.id}
                     onClick={() => decideDoc(item.id, 'approved')}
-                    className="bg-primary text-primary-foreground px-5 py-2.5 rounded-full text-xs font-bold uppercase tracking-widest disabled:opacity-60"
+                    className="!min-h-[40px]"
                   >
                     Approve
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="button"
+                    variant="outline"
                     disabled={busyId === item.id}
                     onClick={() => decideDoc(item.id, 'rejected')}
-                    className="border border-border px-5 py-2.5 rounded-full text-xs font-bold uppercase tracking-widest disabled:opacity-60"
+                    className="!min-h-[40px]"
                   >
                     Reject
-                  </button>
+                  </Button>
                 </div>
               </div>
             ))}
@@ -269,22 +271,12 @@ function KycCard({
       </div>
       {item.status === 'pending' && onApprove && onReject && (
         <div className="flex gap-3 pt-1">
-          <button
-            type="button"
-            disabled={busy}
-            onClick={onApprove}
-            className="bg-primary text-primary-foreground px-5 py-2.5 rounded-full text-xs font-bold uppercase tracking-widest disabled:opacity-60"
-          >
-            {busy ? 'Saving…' : 'Approve'}
-          </button>
-          <button
-            type="button"
-            disabled={busy}
-            onClick={onReject}
-            className="border border-border px-5 py-2.5 rounded-full text-xs font-bold uppercase tracking-widest disabled:opacity-60"
-          >
+          <Button type="button" loading={busy} onClick={onApprove} className="!min-h-[40px]">
+            Approve
+          </Button>
+          <Button type="button" variant="outline" disabled={busy} onClick={onReject} className="!min-h-[40px]">
             Reject
-          </button>
+          </Button>
         </div>
       )}
     </div>

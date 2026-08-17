@@ -2,6 +2,8 @@
 
 import { FormEvent, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/Button';
+import Select from '@/components/ui/Select';
 
 type ArtisanDetail = {
   id: string;
@@ -111,18 +113,16 @@ export default function ArtisanDetailPage() {
 
         <form onSubmit={book} className="rounded-3xl border border-border bg-card p-6 space-y-4 h-fit">
           <h2 className="text-lg font-bold">Request a booking</h2>
-          <select
+          <Select
             value={serviceId}
-            onChange={(e) => setServiceId(e.target.value)}
-            className="w-full px-4 py-3 rounded-2xl border border-border bg-background text-sm"
+            onChange={setServiceId}
+            placeholder="Choose a service"
+            options={artisan.services.map((s) => ({
+              value: s.id,
+              label: `${s.title} — GHS ${s.priceAmount.toFixed(2)}`,
+            }))}
             required
-          >
-            {artisan.services.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.title} — GHS {s.priceAmount.toFixed(2)}
-              </option>
-            ))}
-          </select>
+          />
           <input
             value={location}
             onChange={(e) => setLocation(e.target.value)}
@@ -139,13 +139,9 @@ export default function ArtisanDetailPage() {
             required
           />
           {error && <p className="text-sm text-red-600">{error}</p>}
-          <button
-            type="submit"
-            disabled={loading || artisan.services.length === 0}
-            className="w-full bg-primary text-primary-foreground py-3 rounded-full text-xs font-bold uppercase tracking-widest disabled:opacity-60"
-          >
+          <Button type="submit" loading={loading} disabled={artisan.services.length === 0} className="w-full">
             {loading ? 'Sending…' : 'Send booking request'}
-          </button>
+          </Button>
         </form>
       </div>
 

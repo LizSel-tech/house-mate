@@ -3,6 +3,8 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import Icon from '@/components/ui/AppIcon';
+import { Button } from '@/components/ui/Button';
+import Select from '@/components/ui/Select';
 
 type Booking = {
   id: string;
@@ -29,6 +31,7 @@ export default function UserBookingsPage() {
   const [error, setError] = useState('');
   const [rating, setRating] = useState<Record<string, string>>({});
   const [comment, setComment] = useState<Record<string, string>>({});
+  const [busyId, setBusyId] = useState('');
 
   const load = async () => {
     const res = await fetch('/api/bookings');
@@ -43,42 +46,57 @@ export default function UserBookingsPage() {
   const act = async (id: string, path: string) => {
     setError('');
     setMessage('');
-    const res = await fetch(`/api/bookings/${id}/${path}`, { method: 'POST' });
-    const data = await res.json();
-    if (!res.ok) {
-      setError(data.error || 'Action failed.');
-      return;
+    setBusyId(`${id}-${path}`);
+    try {
+      const res = await fetch(`/api/bookings/${id}/${path}`, { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || 'Action failed.');
+        return;
+      }
+      setMessage(data.message || 'Done.');
+      await load();
+    } finally {
+      setBusyId('');
     }
-    setMessage(data.message || 'Done.');
-    await load();
   };
 
   const cancel = async (id: string) => {
-    await fetch(`/api/bookings/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: 'cancelled' }),
-    });
-    await load();
+    setBusyId(`${id}-cancel`);
+    try {
+      await fetch(`/api/bookings/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'cancelled' }),
+      });
+      await load();
+    } finally {
+      setBusyId('');
+    }
   };
 
   const review = async (id: string) => {
     setError('');
-    const res = await fetch(`/api/bookings/${id}/review`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        rating: Number(rating[id] || 5),
-        comment: comment[id] || '',
-      }),
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      setError(data.error || 'Review failed.');
-      return;
+    setBusyId(`${id}-review`);
+    try {
+      const res = await fetch(`/api/bookings/${id}/review`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          rating: Number(rating[id] || 5),
+          comment: comment[id] || '',
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || 'Review failed.');
+        return;
+      }
+      setMessage('Review submitted.');
+      await load();
+    } finally {
+      setBusyId('');
     }
-    setMessage('Review submitted.');
-    await load();
   };
 
   return (
@@ -162,48 +180,46 @@ export default function UserBookingsPage() {
 
               <div className="flex flex-wrap gap-2">
                 {booking.status === 'requested' && (
-                  <button
+                  <Button
                     type="button"
+                    variant="outline"
+                    loading={busyId === `${booking.id}-cancel`}
                     onClick={() => cancel(booking.id)}
-                    className="px-4 py-2.5 rounded-full border border-border text-xs font-bold uppercase tracking-widest"
+                    className="!min-h-[40px]"
                   >
                     Cancel
-                  </button>
+                  </Button>
                 )}
                 {booking.status === 'accepted' && !booking.payment && (
-                  <button
+                  <Button
                     type="button"
+                    loading={busyId === `${booking.id}-pay`}
                     onClick={() => act(booking.id, 'pay')}
-                    className="px-4 py-2.5 rounded-full bg-primary text-primary-foreground text-xs font-bold uppercase tracking-widest"
+                    className="!min-h-[40px]"
                   >
                     Pay into escrow
-                  </button>
+                  </Button>
                 )}
                 {booking.payment?.escrowStatus === 'held' && (
-                  <button
+                  <Button
                     type="button"
+                    loading={busyId === `${booking.id}-confirm`}
                     onClick={() => act(booking.id, 'confirm')}
-                    className="px-4 py-2.5 rounded-full bg-primary text-primary-foreground text-xs font-bold uppercase tracking-widest"
+                    className="!min-h-[40px]"
                   >
                     Confirm completion
-                  </button>
+                  </Button>
                 )}
               </div>
 
               {booking.payment?.escrowStatus === 'released' && !booking.review && (
                 <div className="pt-4 border-t border-border space-y-3">
                   <p className="text-sm font-semibold text-foreground">Leave a review</p>
-                  <select
+                  <Select
                     value={rating[booking.id] || '5'}
-                    onChange={(e) => setRating((prev) => ({ ...prev, [booking.id]: e.target.value }))}
-                    className="px-4 py-2.5 rounded-2xl border border-border bg-background text-sm"
-                  >
-                    {[5, 4, 3, 2, 1].map((n) => (
-                      <option key={n} value={n}>
-                        {n} stars
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(value) => setRating((prev) => ({ ...prev, [booking.id]: value }))}
+                    options={[5, 4, 3, 2, 1].map((n) => ({ value: String(n), label: `${n} stars` }))}
+                  />
                   <textarea
                     value={comment[booking.id] || ''}
                     onChange={(e) => setComment((prev) => ({ ...prev, [booking.id]: e.target.value }))}
@@ -211,13 +227,15 @@ export default function UserBookingsPage() {
                     rows={2}
                     className="w-full px-4 py-3 rounded-2xl border border-border bg-background text-sm"
                   />
-                  <button
+                  <Button
                     type="button"
+                    variant="secondary"
+                    loading={busyId === `${booking.id}-review`}
                     onClick={() => review(booking.id)}
-                    className="px-4 py-2.5 rounded-full bg-secondary text-secondary-foreground text-xs font-bold uppercase tracking-widest"
+                    className="!min-h-[40px]"
                   >
                     Submit review
-                  </button>
+                  </Button>
                 </div>
               )}
             </div>

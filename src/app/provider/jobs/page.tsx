@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Icon from '@/components/ui/AppIcon';
+import { Button } from '@/components/ui/Button';
 
 type Booking = {
   id: string;
@@ -25,6 +26,7 @@ export default function ProviderJobsPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [error, setError] = useState('');
   const [filter, setFilter] = useState<'all' | 'requested' | 'active' | 'done'>('all');
+  const [busyId, setBusyId] = useState('');
 
   const load = async () => {
     const res = await fetch('/api/bookings');
@@ -38,17 +40,22 @@ export default function ProviderJobsPage() {
 
   const setStatus = async (id: string, status: string) => {
     setError('');
-    const res = await fetch(`/api/bookings/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status }),
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      setError(data.error || 'Update failed.');
-      return;
+    setBusyId(`${id}-${status}`);
+    try {
+      const res = await fetch(`/api/bookings/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || 'Update failed.');
+        return;
+      }
+      await load();
+    } finally {
+      setBusyId('');
     }
-    await load();
   };
 
   const filtered = useMemo(() => {
@@ -149,20 +156,23 @@ export default function ProviderJobsPage() {
               <div className="flex flex-wrap gap-2">
                 {booking.status === 'requested' && (
                   <>
-                    <button
+                    <Button
                       type="button"
+                      loading={busyId === `${booking.id}-accepted`}
                       onClick={() => setStatus(booking.id, 'accepted')}
-                      className="px-4 py-2.5 rounded-full bg-primary text-primary-foreground text-xs font-bold uppercase tracking-widest"
+                      className="!min-h-[40px]"
                     >
                       Accept
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       type="button"
+                      variant="outline"
+                      loading={busyId === `${booking.id}-cancelled`}
                       onClick={() => setStatus(booking.id, 'cancelled')}
-                      className="px-4 py-2.5 rounded-full border border-border text-xs font-bold uppercase tracking-widest"
+                      className="!min-h-[40px]"
                     >
                       Decline
-                    </button>
+                    </Button>
                   </>
                 )}
                 {booking.status === 'accepted' && (
@@ -171,13 +181,14 @@ export default function ProviderJobsPage() {
                   </p>
                 )}
                 {booking.status === 'in_progress' && (
-                  <button
+                  <Button
                     type="button"
+                    loading={busyId === `${booking.id}-completed`}
                     onClick={() => setStatus(booking.id, 'completed')}
-                    className="px-4 py-2.5 rounded-full bg-primary text-primary-foreground text-xs font-bold uppercase tracking-widest"
+                    className="!min-h-[40px]"
                   >
                     Mark work done
-                  </button>
+                  </Button>
                 )}
               </div>
             </div>

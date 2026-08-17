@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { FormEvent, useEffect, useState } from 'react';
 import Icon from '@/components/ui/AppIcon';
+import { Button } from '@/components/ui/Button';
 
 type Artisan = {
   id: string;
@@ -87,12 +88,9 @@ export default function UserSearchPage() {
           placeholder="Area (e.g. Accra)"
           className="px-4 py-3 rounded-2xl border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
         />
-        <button
-          type="submit"
-          className="sm:col-span-4 bg-primary text-primary-foreground px-6 py-3 rounded-full text-xs font-bold uppercase tracking-widest w-full sm:w-auto justify-self-start min-h-[44px]"
-        >
-          {loading ? 'Searching…' : 'Search'}
-        </button>
+        <Button type="submit" loading={loading} className="sm:col-span-4 w-full sm:w-auto justify-self-start">
+          Search
+        </Button>
       </form>
 
       {artisans.length === 0 ? (

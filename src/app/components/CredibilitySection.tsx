@@ -100,7 +100,7 @@ export default function CredibilitySection() {
           {displayStats.map((stat, i) => (
             <div
               key={stat.label}
-              className="bg-white/5 border border-white/10 rounded-3xl sm:rounded-4xl p-4 sm:p-6 flex flex-col items-start gap-2 sm:gap-3 hover:border-primary/40 transition-colors duration-300"
+              className="bg-white/5 border border-white/10 rounded-4xl p-5 sm:p-7 flex flex-col items-start gap-3 hover:border-primary/40 hover:bg-white/[0.07] transition-all duration-300"
               style={{ transitionDelay: `${i * 80}ms` }}
             >
               <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-primary/20 flex items-center justify-center text-primary">
@@ -128,7 +128,7 @@ export default function CredibilitySection() {
         </div>
 
         {reviews.length === 0 ? (
-          <div className="reveal rounded-3xl border border-white/10 bg-white/5 p-8 sm:p-10 text-center">
+          <div className="reveal rounded-4xl border border-white/10 bg-white/5 p-8 sm:p-10 text-center">
             <Icon name="ChatBubbleLeftEllipsisIcon" size={28} className="text-primary/60 mx-auto mb-4" />
             <p className="text-white font-bold text-lg">Be the first to leave a review</p>
             <p className="text-white/50 text-sm mt-2 max-w-md mx-auto">

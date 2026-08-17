@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { FormEvent, Suspense, useState } from 'react';
 import AuthShell from '@/components/auth/AuthShell';
+import { Button } from '@/components/ui/Button';
 import { PORTAL_HOME } from '@/lib/auth/constants';
 import { sanitizePhoneInput } from '@/lib/auth/session-token';
 import type { UserRole } from '@/types/auth';
@@ -121,13 +122,9 @@ function LoginForm() {
             </p>
           )}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-primary text-primary-foreground py-3.5 rounded-full font-bold text-sm uppercase tracking-widest hover:bg-accent transition-colors min-h-[48px] disabled:opacity-60"
-          >
+          <Button type="submit" loading={loading} className="w-full min-h-[48px] text-sm">
             {loading ? 'Sending…' : 'Send OTP'}
-          </button>
+          </Button>
         </form>
       ) : (
         <form onSubmit={handleLogin} className="flex flex-col gap-5">
@@ -162,13 +159,9 @@ function LoginForm() {
             </p>
           )}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-primary text-primary-foreground py-3.5 rounded-full font-bold text-sm uppercase tracking-widest hover:bg-accent transition-colors min-h-[48px] disabled:opacity-60"
-          >
+          <Button type="submit" loading={loading} className="w-full min-h-[48px] text-sm">
             {loading ? 'Signing in…' : 'Sign in'}
-          </button>
+          </Button>
 
           <button
             type="button"

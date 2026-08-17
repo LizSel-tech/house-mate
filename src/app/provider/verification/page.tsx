@@ -1,6 +1,7 @@
 'use client';
 
 import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
+import { Button } from '@/components/ui/Button';
 
 type KycRecord = {
   id: string;
@@ -445,13 +446,9 @@ export default function ProviderVerificationPage() {
               .
             </span>
           </label>
-          <button
-            type="submit"
-            disabled={loading}
-            className="bg-primary text-primary-foreground px-6 py-3 rounded-full text-xs font-bold uppercase tracking-widest disabled:opacity-60"
-          >
-            {loading ? 'Saving…' : 'Continue'}
-          </button>
+          <Button type="submit" loading={loading}>
+            Continue
+          </Button>
         </form>
       )}
 
@@ -493,14 +490,13 @@ export default function ProviderVerificationPage() {
             >
               Back
             </button>
-            <button
+            <Button
               type="button"
-              disabled={loading}
+              loading={loading}
               onClick={onDocumentContinue}
-              className="bg-primary text-primary-foreground px-6 py-3 rounded-full text-xs font-bold uppercase tracking-widest disabled:opacity-60"
             >
-              {loading ? 'Uploading…' : 'Continue to face check'}
-            </button>
+              Continue to face check
+            </Button>
           </div>
         </div>
       )}
@@ -540,14 +536,14 @@ export default function ProviderVerificationPage() {
             >
               Capture frame
             </button>
-            <button
+            <Button
               type="button"
               onClick={uploadLivenessAndContinue}
-              disabled={loading || liveCount < 6}
-              className="bg-primary text-primary-foreground px-6 py-3 rounded-full text-xs font-bold uppercase tracking-widest disabled:opacity-60"
+              loading={loading}
+              disabled={liveCount < 6}
             >
-              {loading ? 'Uploading…' : 'Continue'}
-            </button>
+              Continue
+            </Button>
           </div>
         </div>
       )}
@@ -575,14 +571,9 @@ export default function ProviderVerificationPage() {
             >
               Back
             </button>
-            <button
-              type="button"
-              disabled={loading}
-              onClick={onSubmitVerification}
-              className="bg-primary text-primary-foreground px-6 py-3 rounded-full text-xs font-bold uppercase tracking-widest disabled:opacity-60"
-            >
-              {loading ? 'Submitting…' : 'Submit verification'}
-            </button>
+            <Button type="button" loading={loading} onClick={onSubmitVerification}>
+              Submit verification
+            </Button>
           </div>
         </div>
       )}
