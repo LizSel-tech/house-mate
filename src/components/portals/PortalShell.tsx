@@ -20,11 +20,13 @@ export default function PortalShell({
   title,
   navItems,
   children,
+  wide = false,
 }: {
   user: SessionUser;
   title: string;
   navItems: PortalNavItem[];
   children: React.ReactNode;
+  wide?: boolean;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -63,7 +65,14 @@ export default function PortalShell({
     }
   };
 
-  const chatHref = user.role === 'user' ? '/user/chat' : user.role === 'artisan' ? '/provider/chat' : null;
+  const chatHref =
+    user.role === 'user'
+      ? '/user/chat'
+      : user.role === 'artisan'
+        ? '/provider/chat'
+        : user.role === 'admin'
+          ? '/admin/chat'
+          : null;
   const chatActive = Boolean(chatHref && pathname.startsWith(chatHref));
 
   const ChatButton = ({ tone = 'light' }: { tone?: 'light' | 'dark' }) => {
@@ -215,7 +224,7 @@ export default function PortalShell({
       )}
 
       <main className="flex-1 min-w-0 min-h-0 flex flex-col bg-[radial-gradient(ellipse_at_top,_rgba(217,119,6,0.06),_transparent_55%)]">
-        {chatHref && (
+        {chatHref && user.role !== 'admin' && (
           <header className="hidden md:flex shrink-0 h-16 items-center px-5 sm:px-8 border-b border-border/80 bg-background/85 backdrop-blur-md">
             {chatActive ? (
               <div>
@@ -239,7 +248,13 @@ export default function PortalShell({
           {chatActive ? (
             <div className="h-full min-h-0">{children}</div>
           ) : (
-            <div className="max-w-5xl mx-auto px-5 sm:px-8 py-8 md:py-10">{children}</div>
+            <div
+              className={`mx-auto px-5 sm:px-8 py-8 md:py-10 ${
+                wide ? 'max-w-7xl' : 'max-w-5xl'
+              }`}
+            >
+              {children}
+            </div>
           )}
         </div>
       </main>

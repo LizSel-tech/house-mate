@@ -5,9 +5,19 @@ import type { ArtisanProfile } from '@/types/db';
 
 const LIST_SQL = `
   SELECT to_jsonb(c) || jsonb_build_object(
-    'user', jsonb_build_object('id', u.id, 'name', u.name, 'avatar_url', u.avatar_url),
+    'user', jsonb_build_object(
+      'id', u.id,
+      'name', u.name,
+      'avatar_url', u.avatar_url,
+      'allow_admin_chat_review', u.allow_admin_chat_review
+    ),
     'artisan', to_jsonb(a) || jsonb_build_object(
-      'user', jsonb_build_object('id', au.id, 'name', au.name, 'avatar_url', au.avatar_url)
+      'user', jsonb_build_object(
+        'id', au.id,
+        'name', au.name,
+        'avatar_url', au.avatar_url,
+        'allow_admin_chat_review', au.allow_admin_chat_review
+      )
     ),
     'last_message', (
       SELECT to_jsonb(m)
@@ -24,8 +34,19 @@ const LIST_SQL = `
 `;
 
 export async function GET() {
-  const { user, error } = await requireSession(['user', 'artisan']);
+  const { user, error } = await requireSession(['user', 'artisan', 'admin']);
   if (error || !user) return error!;
+
+  if (user.role === 'admin') {
+    const conversations = await queryData(
+      `${LIST_SQL}
+       WHERE coalesce(u.allow_admin_chat_review, true) = true
+         AND coalesce(au.allow_admin_chat_review, true) = true
+       ORDER BY c.updated_at DESC
+       LIMIT 200`,
+    );
+    return NextResponse.json({ conversations });
+  }
 
   if (user.role === 'user') {
     const conversations = await queryData(

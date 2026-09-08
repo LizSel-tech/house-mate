@@ -1,0 +1,2 @@
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS allow_admin_chat_review BOOLEAN NOT NULL DEFAULT true;

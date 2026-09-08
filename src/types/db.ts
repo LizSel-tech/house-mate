@@ -23,6 +23,7 @@ export interface User {
   location: string | null;
   accountStatus: AccountStatus;
   avatarUrl: string | null;
+  allowAdminChatReview?: boolean;
   createdAt: Date | string;
 }
 

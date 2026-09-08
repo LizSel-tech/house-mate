@@ -38,7 +38,13 @@ export async function GET(request: Request) {
 
   const artisans = await queryData<Record<string, unknown>>(
     `SELECT to_jsonb(a) || jsonb_build_object(
-       'user', jsonb_build_object('id', u.id, 'name', u.name, 'phone', u.phone, 'location', u.location),
+       'user', jsonb_build_object(
+         'id', u.id,
+         'name', u.name,
+         'phone', u.phone,
+         'location', u.location,
+         'avatar_url', u.avatar_url
+       ),
        'services', COALESCE((
          SELECT jsonb_agg(to_jsonb(s) ORDER BY s.price_amount ASC)
          FROM services s
@@ -48,7 +54,8 @@ export async function GET(request: Request) {
      FROM artisan_profiles a
      JOIN users u ON u.id = a.user_id
      WHERE ${filters.join(' AND ')}
-     ORDER BY a.average_rating DESC, a.jobs_completed DESC`,
+     ORDER BY a.average_rating DESC, a.jobs_completed DESC
+     LIMIT 48`,
     params,
   );
 
@@ -60,7 +67,10 @@ export async function GET(request: Request) {
       serviceArea: a.serviceArea,
       averageRating: Number(a.averageRating),
       jobsCompleted: a.jobsCompleted,
-      user: a.user,
+      user: {
+        ...(a.user as Record<string, unknown>),
+        avatarUrl: (a.user as { avatarUrl?: string | null })?.avatarUrl ?? null,
+      },
       services: ((a.services as Record<string, unknown>[]) || []).map((s) => ({
         id: s.id,
         title: s.title,

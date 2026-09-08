@@ -37,6 +37,9 @@ type ArtisanOption = {
   user: { name: string };
 };
 
+const DISCLOSURE =
+  'Messages in this chat can be reviewed by Fixora admins for safety and dispute resolution.';
+
 function initials(name?: string | null) {
   if (!name) return '?';
   return (
@@ -119,13 +122,58 @@ function Avatar({
   );
 }
 
+function DisclosureBanner({
+  admin,
+  allowed,
+}: {
+  admin?: boolean;
+  allowed?: boolean;
+}) {
+  const text = admin
+    ? 'Read-only monitoring. Only chats where both participants allow review are shown.'
+    : allowed
+      ? DISCLOSURE
+      : 'Admin chat review is off for your account. You can change this in Settings.';
+
+  return (
+    <div
+      className={`flex items-start gap-2 px-4 py-2.5 text-xs leading-relaxed border-b ${
+        admin || !allowed
+          ? 'bg-muted/60 border-border text-muted-foreground'
+          : 'bg-amber-50 border-amber-100 text-amber-900'
+      }`}
+    >
+      <Icon name="ShieldCheckIcon" size={14} className="mt-0.5 shrink-0" />
+      <p>
+        {text}{' '}
+        {!admin && (
+          <button
+            type="button"
+            className="font-semibold underline-offset-2 hover:underline"
+            onClick={() => {
+              const path = window.location.pathname.includes('/provider')
+                ? '/provider/settings'
+                : '/user/settings';
+              window.location.href = path;
+            }}
+          >
+            Open settings
+          </button>
+        )}
+      </p>
+    </div>
+  );
+}
+
 export default function ChatInbox() {
   const [session, setSession] = useState<SessionUser | null>(null);
+  const [allowAdminChatReview, setAllowAdminChatReview] = useState(true);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [artisans, setArtisans] = useState<ArtisanOption[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState('');
+  const [query, setQuery] = useState('');
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [sending, setSending] = useState(false);
   const [recording, setRecording] = useState(false);
@@ -142,6 +190,9 @@ export default function ChatInbox() {
     if (!pendingFile?.type.startsWith('image/')) return null;
     return URL.createObjectURL(pendingFile);
   }, [pendingFile]);
+
+  const isAdmin = session?.role === 'admin';
+  const canSend = session?.role === 'user' || session?.role === 'artisan';
 
   useEffect(() => {
     return () => {
@@ -180,6 +231,13 @@ export default function ChatInbox() {
     }
     const data = await res.json();
     setSession(data.user || null);
+    if (data.user?.role === 'user' || data.user?.role === 'artisan') {
+      const profileRes = await fetch('/api/profile');
+      if (profileRes.ok) {
+        const profile = await profileRes.json();
+        setAllowAdminChatReview(profile.user?.allowAdminChatReview !== false);
+      }
+    }
   }, []);
 
   const loadConversations = useCallback(async () => {
@@ -194,7 +252,7 @@ export default function ChatInbox() {
   }, [loadSession]);
 
   useEffect(() => {
-    if (session?.role === 'user' || session?.role === 'artisan') {
+    if (session?.role === 'user' || session?.role === 'artisan' || session?.role === 'admin') {
       loadConversations();
     }
     if (session?.role === 'user') {
@@ -243,7 +301,7 @@ export default function ChatInbox() {
   };
 
   const send = async (payload: { type: 'text' | 'file' | 'audio'; body?: string; file?: File }) => {
-    if (!activeId) return;
+    if (!activeId || !canSend) return;
     setSending(true);
     setError('');
     try {
@@ -326,12 +384,35 @@ export default function ChatInbox() {
   const peerAvatar = (c: Conversation) =>
     session?.role === 'artisan' ? c.user.avatarUrl : c.artisan.user.avatarUrl;
 
+  const listTitle = (c: Conversation) =>
+    isAdmin ? `${c.user.name} ↔ ${c.artisan.user.name}` : peerName(c);
+
+  const listSubtitle = (c: Conversation) =>
+    isAdmin
+      ? `${c.artisan.trade || 'Artisan'} · ${preview(c)}`
+      : preview(c);
+
   const active = conversations.find((c) => c.id === activeId);
 
   const newArtisans = useMemo(() => {
     const open = new Set(conversations.map((c) => c.artisanId));
     return artisans.filter((a) => !open.has(a.id)).slice(0, 12);
   }, [artisans, conversations]);
+
+  const filteredConversations = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return conversations;
+    return conversations.filter((c) => {
+      const hay = `${c.user.name} ${c.artisan.user.name} ${c.artisan.trade || ''}`.toLowerCase();
+      return hay.includes(q);
+    });
+  }, [conversations, query]);
+
+  const inboxSubtitle = isAdmin
+    ? 'Monitor conversations between customers and artisans'
+    : session?.role === 'artisan'
+      ? 'Messages from customers'
+      : 'Message verified artisans';
 
   return (
     <div className="h-full min-h-0 flex flex-col md:flex-row rounded-none md:rounded-4xl border-0 md:border border-border bg-card overflow-hidden shadow-sm">
@@ -342,15 +423,32 @@ export default function ChatInbox() {
       >
         <div className="px-5 py-5 border-b border-border">
           <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">Inbox</p>
-          <h1 className="text-2xl font-extrabold text-foreground tracking-tight">Chat</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {session?.role === 'artisan' ? 'Messages from customers' : 'Message verified artisans'}
-          </p>
+          <h1 className="text-2xl font-extrabold text-foreground tracking-tight">
+            {isAdmin ? 'Chat monitor' : 'Chat'}
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">{inboxSubtitle}</p>
+          {isAdmin && (
+            <div className="mt-3 relative">
+              <Icon
+                name="MagnifyingGlassIcon"
+                size={16}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+              />
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search customer or artisan…"
+                className="w-full pl-9 pr-3 py-2 rounded-xl border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+          )}
         </div>
+        {!isAdmin && <DisclosureBanner allowed={allowAdminChatReview} />}
+        {isAdmin && <DisclosureBanner admin />}
         {error && !activeId && <p className="px-5 pt-3 text-xs text-red-600">{error}</p>}
         <div className="flex-1 overflow-y-auto p-3 space-y-1">
-          {conversations.map((c) => {
-            const name = peerName(c);
+          {filteredConversations.map((c) => {
+            const name = listTitle(c);
             return (
               <button
                 key={c.id}
@@ -366,7 +464,16 @@ export default function ChatInbox() {
                     : 'hover:bg-muted/70 border border-transparent'
                 }`}
               >
-                <Avatar name={name} src={peerAvatar(c)} />
+                {isAdmin ? (
+                  <div className="relative w-11 h-11 shrink-0">
+                    <Avatar name={c.user.name} src={c.user.avatarUrl} size="sm" />
+                    <div className="absolute -right-0.5 -bottom-0.5">
+                      <Avatar name={c.artisan.user.name} src={c.artisan.user.avatarUrl} size="sm" />
+                    </div>
+                  </div>
+                ) : (
+                  <Avatar name={peerName(c)} src={peerAvatar(c)} />
+                )}
                 <div className="min-w-0 flex-1">
                   <div className="flex items-baseline justify-between gap-2">
                     <p className="text-sm font-semibold text-foreground truncate">{name}</p>
@@ -380,7 +487,7 @@ export default function ChatInbox() {
                     className="text-xs text-muted-foreground truncate mt-0.5"
                     style={{ fontFamily: EMOJI_FONT }}
                   >
-                    {preview(c)}
+                    {listSubtitle(c)}
                   </p>
                 </div>
               </button>
@@ -407,9 +514,13 @@ export default function ChatInbox() {
               ))}
             </div>
           )}
-          {conversations.length === 0 && session?.role === 'artisan' && (
+          {filteredConversations.length === 0 && (
             <p className="text-sm text-muted-foreground p-4 text-center">
-              Customers can start a chat with you from their account.
+              {isAdmin
+                ? 'No conversations yet.'
+                : session?.role === 'artisan'
+                  ? 'Customers can start a chat with you from their account.'
+                  : 'No conversations yet.'}
             </p>
           )}
         </div>
@@ -424,7 +535,9 @@ export default function ChatInbox() {
               </div>
               <p className="font-semibold text-foreground">Select a conversation</p>
               <p className="text-sm text-muted-foreground mt-1 max-w-xs mx-auto">
-                Pick someone from the list to start messaging.
+                {isAdmin
+                  ? 'Open a thread to review messages between a customer and artisan.'
+                  : 'Pick someone from the list to start messaging.'}
               </p>
             </div>
           </div>
@@ -439,20 +552,49 @@ export default function ChatInbox() {
               >
                 <Icon name="ArrowLeftIcon" size={18} />
               </button>
-              {active && <Avatar name={peerName(active)} src={peerAvatar(active)} size="sm" />}
-              <div className="min-w-0">
-                <p className="text-sm font-bold text-foreground truncate">
-                  {active ? peerName(active) : 'Conversation'}
-                </p>
-                <p className="text-[11px] text-muted-foreground capitalize">
-                  {session.role === 'artisan' ? 'Customer' : active?.artisan.trade || 'Artisan'}
-                </p>
-              </div>
+              {active &&
+                (isAdmin ? (
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Avatar name={active.user.name} src={active.user.avatarUrl} size="sm" />
+                    <Avatar name={active.artisan.user.name} src={active.artisan.user.avatarUrl} size="sm" />
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-foreground truncate">
+                        {active.user.name} ↔ {active.artisan.user.name}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground capitalize">
+                        Customer · {active.artisan.trade || 'Artisan'}
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <Avatar name={peerName(active)} src={peerAvatar(active)} size="sm" />
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-foreground truncate">{peerName(active)}</p>
+                      <p className="text-[11px] text-muted-foreground capitalize">
+                        {session.role === 'artisan' ? 'Customer' : active.artisan.trade || 'Artisan'}
+                      </p>
+                    </div>
+                  </>
+                ))}
             </div>
 
-            <div ref={scrollerRef} className="flex-1 overflow-y-auto p-4 space-y-1 bg-[radial-gradient(ellipse_at_top,_rgba(217,119,6,0.05),_transparent_55%)]">
+            <DisclosureBanner admin={isAdmin} allowed={allowAdminChatReview} />
+
+            <div
+              ref={scrollerRef}
+              className="flex-1 overflow-y-auto p-4 space-y-1 bg-[radial-gradient(ellipse_at_top,_rgba(217,119,6,0.05),_transparent_55%)]"
+            >
               {messages.map((m, i) => {
-                const mine = m.senderId === session.id;
+                const fromCustomer = active ? m.senderId === active.userId : false;
+                const mine = !isAdmin && m.senderId === session.id;
+                const alignEnd = isAdmin ? !fromCustomer : mine;
+                const bubbleMine = isAdmin ? !fromCustomer : mine;
+                const senderLabel = isAdmin
+                  ? fromCustomer
+                    ? active?.user.name || 'Customer'
+                    : active?.artisan.user.name || 'Artisan'
+                  : null;
                 const showDay = i === 0 || !sameDay(messages[i - 1].createdAt, m.createdAt);
                 return (
                   <div key={m.id}>
@@ -461,15 +603,24 @@ export default function ChatInbox() {
                         {formatDay(m.createdAt)}
                       </p>
                     )}
-                    <div className={`flex items-end gap-2 ${mine ? 'justify-end' : 'justify-start'}`}>
-                      {!mine && active && (
-                        <Avatar name={peerName(active)} src={peerAvatar(active)} size="sm" />
+                    <div className={`flex items-end gap-2 ${alignEnd ? 'justify-end' : 'justify-start'}`}>
+                      {!alignEnd && active && (
+                        <Avatar
+                          name={isAdmin ? active.user.name : peerName(active)}
+                          src={isAdmin ? active.user.avatarUrl : peerAvatar(active)}
+                          size="sm"
+                        />
                       )}
-                      <div className={`max-w-[78%] ${mine ? 'items-end' : 'items-start'} flex flex-col`}>
+                      <div className={`max-w-[78%] ${alignEnd ? 'items-end' : 'items-start'} flex flex-col`}>
+                        {senderLabel && (
+                          <p className="text-[10px] font-semibold text-muted-foreground px-1 mb-0.5">
+                            {senderLabel}
+                          </p>
+                        )}
                         {m.type === 'text' && (
                           <div
                             className={`rounded-3xl px-4 py-2.5 text-sm ${
-                              mine
+                              bubbleMine
                                 ? 'bg-primary text-primary-foreground rounded-br-md'
                                 : 'bg-muted text-foreground rounded-bl-md'
                             }`}
@@ -490,7 +641,7 @@ export default function ChatInbox() {
                             {m.body && !isFilenameCaption(m.body) && (
                               <p
                                 className={`px-3 py-2 text-sm ${
-                                  mine ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground'
+                                  bubbleMine ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground'
                                 }`}
                               >
                                 {m.body}
@@ -504,14 +655,14 @@ export default function ChatInbox() {
                             target="_blank"
                             rel="noreferrer"
                             className={`flex items-center gap-3 min-w-[180px] rounded-3xl px-4 py-3 ${
-                              mine
+                              bubbleMine
                                 ? 'bg-primary text-primary-foreground rounded-br-md'
                                 : 'bg-muted text-foreground rounded-bl-md'
                             }`}
                           >
                             <span
                               className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 ${
-                                mine ? 'bg-white/20' : 'bg-primary/10 text-primary'
+                                bubbleMine ? 'bg-white/20' : 'bg-primary/10 text-primary'
                               }`}
                             >
                               <Icon name="DocumentTextIcon" size={20} />
@@ -525,15 +676,15 @@ export default function ChatInbox() {
                         {m.type === 'audio' && m.fileUrl && (
                           <div
                             className={`rounded-3xl px-4 py-2.5 ${
-                              mine
+                              bubbleMine
                                 ? 'bg-primary text-primary-foreground rounded-br-md'
                                 : 'bg-muted text-foreground rounded-bl-md'
                             }`}
                           >
-                            <VoiceNote src={m.fileUrl} mine={mine} />
+                            <VoiceNote src={m.fileUrl} mine={bubbleMine} />
                           </div>
                         )}
-                        <p className={`text-[11px] mt-1 px-1 text-muted-foreground ${mine ? 'text-right' : 'text-left'}`}>
+                        <p className={`text-[11px] mt-1 px-1 text-muted-foreground ${alignEnd ? 'text-right' : 'text-left'}`}>
                           {formatTime(m.createdAt)}
                         </p>
                       </div>
@@ -545,153 +696,159 @@ export default function ChatInbox() {
 
             {error && <p className="px-4 pb-1 text-xs text-red-600">{error}</p>}
 
-            <div className="p-3 border-t border-border bg-card">
-              {emojiOpen &&
-                typeof document !== 'undefined' &&
-                createPortal(
-                  <div
-                    className="fixed z-[80]"
-                    style={{
-                      bottom: pickerPos.bottom,
-                      left: pickerPos.left,
-                      width: pickerPos.width,
-                    }}
-                  >
-                    <EmojiPicker onPick={insertEmoji} onClose={() => setEmojiOpen(false)} />
-                  </div>,
-                  document.body,
-                )}
-              <form
-                className="flex flex-col gap-2"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (pendingFile) {
-                    void send({
-                      type: 'file',
-                      file: pendingFile,
-                      body: draft.trim() || undefined,
-                    });
-                    return;
-                  }
-                  if (draft.trim()) void send({ type: 'text', body: draft.trim() });
-                }}
-              >
-                {pendingFile && (
-                  <div className="rounded-2xl border border-border bg-muted/50 p-3 flex items-start gap-3">
-                    {previewUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={previewUrl}
-                        alt={pendingFile.name}
-                        className="w-16 h-16 rounded-xl object-cover shrink-0 border border-border"
-                      />
-                    ) : (
-                      <div className="w-16 h-16 rounded-xl bg-card border border-border flex items-center justify-center shrink-0 text-primary">
-                        <Icon name="DocumentTextIcon" size={22} />
-                      </div>
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold text-foreground truncate">{pendingFile.name}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {pendingFile.type || 'File'} · {formatBytes(pendingFile.size)}
-                      </p>
-                      <p className="text-[11px] text-muted-foreground mt-1">
-                        Preview ready — tap Send to share, or add a caption.
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      aria-label="Remove file"
-                      onClick={() => setPendingFile(null)}
-                      className="w-8 h-8 rounded-full hover:bg-muted flex items-center justify-center shrink-0 text-muted-foreground"
+            {canSend ? (
+              <div className="p-3 border-t border-border bg-card">
+                {emojiOpen &&
+                  typeof document !== 'undefined' &&
+                  createPortal(
+                    <div
+                      className="fixed z-[80]"
+                      style={{
+                        bottom: pickerPos.bottom,
+                        left: pickerPos.left,
+                        width: pickerPos.width,
+                      }}
                     >
-                      <Icon name="XMarkIcon" size={16} />
-                    </button>
-                  </div>
-                )}
-                <div className="flex items-end gap-2">
-                <div className="flex-1 min-w-0 rounded-3xl border border-border bg-background px-2 py-1.5 flex items-end gap-1">
-                  <button
-                    ref={emojiBtnRef}
-                    type="button"
-                    onMouseDown={(e) => e.stopPropagation()}
-                    onClick={() => setEmojiOpen((v) => !v)}
-                    aria-label="Emoji"
-                    className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 text-lg ${
-                      emojiOpen ? 'bg-primary/10' : 'hover:bg-muted'
-                    }`}
-                    style={{ fontFamily: EMOJI_FONT }}
-                  >
-                    😊
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => fileRef.current?.click()}
-                    aria-label="Attach file"
-                    className="w-9 h-9 rounded-full hover:bg-muted flex items-center justify-center shrink-0 text-muted-foreground"
-                  >
-                    <Icon name="PaperClipIcon" size={18} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={toggleRecord}
-                    aria-label={recording ? 'Stop recording' : 'Record voice note'}
-                    className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${
-                      recording ? 'bg-red-500 text-white' : 'hover:bg-muted text-muted-foreground'
-                    }`}
-                  >
-                    <Icon name="MicrophoneIcon" size={18} />
-                  </button>
-                  <textarea
-                    ref={inputRef}
-                    value={draft}
-                    rows={1}
-                    onChange={(e) => setDraft(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault();
-                        if (pendingFile) {
-                          void send({
-                            type: 'file',
-                            file: pendingFile,
-                            body: draft.trim() || undefined,
-                          });
-                          return;
-                        }
-                        if (draft.trim()) void send({ type: 'text', body: draft.trim() });
-                      }
-                    }}
-                    placeholder={
-                      recording
-                        ? 'Recording… tap mic to send'
-                        : pendingFile
-                          ? 'Add a caption…'
-                          : 'Type a message…'
+                      <EmojiPicker onPick={insertEmoji} onClose={() => setEmojiOpen(false)} />
+                    </div>,
+                    document.body,
+                  )}
+                <form
+                  className="flex flex-col gap-2"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (pendingFile) {
+                      void send({
+                        type: 'file',
+                        file: pendingFile,
+                        body: draft.trim() || undefined,
+                      });
+                      return;
                     }
-                    className="flex-1 min-w-0 max-h-28 resize-none px-2 py-2 bg-transparent text-sm focus:outline-none"
-                    style={{ fontFamily: EMOJI_FONT }}
-                  />
-                </div>
-                <Button type="submit" loading={sending} className="!min-h-[44px] !px-5 shrink-0">
-                  Send
-                </Button>
-                </div>
-                <input
-                  ref={fileRef}
-                  type="file"
-                  className="hidden"
-                  accept="image/jpeg,image/png,image/webp,application/pdf"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      setPendingFile(file);
-                      setEmojiOpen(false);
-                    }
-                    e.target.value = '';
+                    if (draft.trim()) void send({ type: 'text', body: draft.trim() });
                   }}
-                />
-              </form>
-            </div>
+                >
+                  {pendingFile && (
+                    <div className="rounded-2xl border border-border bg-muted/50 p-3 flex items-start gap-3">
+                      {previewUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={previewUrl}
+                          alt={pendingFile.name}
+                          className="w-16 h-16 rounded-xl object-cover shrink-0 border border-border"
+                        />
+                      ) : (
+                        <div className="w-16 h-16 rounded-xl bg-card border border-border flex items-center justify-center shrink-0 text-primary">
+                          <Icon name="DocumentTextIcon" size={22} />
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-foreground truncate">{pendingFile.name}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {pendingFile.type || 'File'} · {formatBytes(pendingFile.size)}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground mt-1">
+                          Preview ready — tap Send to share, or add a caption.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        aria-label="Remove file"
+                        onClick={() => setPendingFile(null)}
+                        className="w-8 h-8 rounded-full hover:bg-muted flex items-center justify-center shrink-0 text-muted-foreground"
+                      >
+                        <Icon name="XMarkIcon" size={16} />
+                      </button>
+                    </div>
+                  )}
+                  <div className="flex items-end gap-2">
+                    <div className="flex-1 min-w-0 rounded-3xl border border-border bg-background px-2 py-1.5 flex items-end gap-1">
+                      <button
+                        ref={emojiBtnRef}
+                        type="button"
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onClick={() => setEmojiOpen((v) => !v)}
+                        aria-label="Emoji"
+                        className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 text-lg ${
+                          emojiOpen ? 'bg-primary/10' : 'hover:bg-muted'
+                        }`}
+                        style={{ fontFamily: EMOJI_FONT }}
+                      >
+                        😊
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => fileRef.current?.click()}
+                        aria-label="Attach file"
+                        className="w-9 h-9 rounded-full hover:bg-muted flex items-center justify-center shrink-0 text-muted-foreground"
+                      >
+                        <Icon name="PaperClipIcon" size={18} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={toggleRecord}
+                        aria-label={recording ? 'Stop recording' : 'Record voice note'}
+                        className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${
+                          recording ? 'bg-red-500 text-white' : 'hover:bg-muted text-muted-foreground'
+                        }`}
+                      >
+                        <Icon name="MicrophoneIcon" size={18} />
+                      </button>
+                      <textarea
+                        ref={inputRef}
+                        value={draft}
+                        rows={1}
+                        onChange={(e) => setDraft(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault();
+                            if (pendingFile) {
+                              void send({
+                                type: 'file',
+                                file: pendingFile,
+                                body: draft.trim() || undefined,
+                              });
+                              return;
+                            }
+                            if (draft.trim()) void send({ type: 'text', body: draft.trim() });
+                          }
+                        }}
+                        placeholder={
+                          recording
+                            ? 'Recording… tap mic to send'
+                            : pendingFile
+                              ? 'Add a caption…'
+                              : 'Type a message…'
+                        }
+                        className="flex-1 min-w-0 max-h-28 resize-none px-2 py-2 bg-transparent text-sm focus:outline-none"
+                        style={{ fontFamily: EMOJI_FONT }}
+                      />
+                    </div>
+                    <Button type="submit" loading={sending} className="!min-h-[44px] !px-5 shrink-0">
+                      Send
+                    </Button>
+                  </div>
+                  <input
+                    ref={fileRef}
+                    type="file"
+                    className="hidden"
+                    accept="image/jpeg,image/png,image/webp,application/pdf"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        setPendingFile(file);
+                        setEmojiOpen(false);
+                      }
+                      e.target.value = '';
+                    }}
+                  />
+                </form>
+              </div>
+            ) : (
+              <div className="px-4 py-3 border-t border-border bg-muted/40 text-center text-xs text-muted-foreground">
+                Admins can view conversations but cannot send messages.
+              </div>
+            )}
           </>
         )}
       </section>

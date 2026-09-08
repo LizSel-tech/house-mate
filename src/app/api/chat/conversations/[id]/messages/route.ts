@@ -16,6 +16,21 @@ async function canAccess(conversationId: string, userId: string, role: string) {
     [conversationId],
   );
   if (!convo) return null;
+  if (role === 'admin') {
+    const consent = await queryOne<{ ok: boolean }>(
+      `SELECT (
+         coalesce(u.allow_admin_chat_review, true)
+         AND coalesce(au.allow_admin_chat_review, true)
+       ) AS ok
+       FROM conversations c
+       JOIN users u ON u.id = c.user_id
+       JOIN artisan_profiles a ON a.id = c.artisan_id
+       JOIN users au ON au.id = a.user_id
+       WHERE c.id = $1`,
+      [conversationId],
+    );
+    return consent?.ok ? convo : null;
+  }
   if (role === 'user' && convo.userId === userId) return convo;
   if (role === 'artisan') {
     const profile = await queryOne<ArtisanProfile>(
@@ -31,7 +46,7 @@ export async function GET(
   _request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
-  const { user, error } = await requireSession(['user', 'artisan']);
+  const { user, error } = await requireSession(['user', 'artisan', 'admin']);
   if (error || !user) return error!;
   const { id } = await context.params;
 

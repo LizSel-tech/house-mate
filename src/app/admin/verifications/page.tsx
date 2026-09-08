@@ -2,6 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/Button';
+import {
+  AdminPageHeader,
+  EmptyState,
+  StatusBadge,
+} from '@/components/admin/AdminUI';
 
 type Verification = {
   id: string;
@@ -39,6 +44,48 @@ type KycItem = {
     verificationStatus: string;
   } | null;
 };
+
+function kycTone(status: string): 'success' | 'warning' | 'danger' | 'primary' | 'neutral' {
+  if (status === 'approved') return 'success';
+  if (status === 'rejected') return 'danger';
+  if (status === 'pending') return 'warning';
+  return 'neutral';
+}
+
+function DocChip({ href, label }: { href: string; label: string }) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+      className="inline-flex items-center px-2.5 py-1 rounded-lg border border-border bg-background text-xs font-semibold text-foreground hover:border-primary/40 hover:text-primary transition-colors"
+    >
+      {label}
+    </a>
+  );
+}
+
+function Thumb({ href, label }: { href: string; label: string }) {
+  const isImage = /\.(png|jpe?g|webp|gif)$/i.test(href);
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+      className="block w-16 h-16 rounded-xl overflow-hidden border border-border bg-muted shrink-0"
+      title={label}
+    >
+      {isImage ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={href} alt={label} className="w-full h-full object-cover" />
+      ) : (
+        <span className="w-full h-full flex items-center justify-center text-[10px] font-bold uppercase text-muted-foreground px-1 text-center">
+          {label}
+        </span>
+      )}
+    </a>
+  );
+}
 
 export default function AdminVerificationsPage() {
   const [items, setItems] = useState<Verification[]>([]);
@@ -110,25 +157,34 @@ export default function AdminVerificationsPage() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-extrabold text-foreground tracking-tight">Verifications</h1>
-        <p className="mt-2 text-muted-foreground">
-          Review artisan Ghana Card, selfie, and liveness frames, then approve or reject.
-        </p>
-      </div>
-
-      {error && <p className="text-sm text-red-600">{error}</p>}
-
-      <section className="space-y-4">
-        <h2 className="text-xl font-bold text-foreground">
-          KYC review queue{pendingKyc.length ? ` (${pendingKyc.length})` : ''}
-        </h2>
-        {pendingKyc.length === 0 ? (
-          <div className="rounded-3xl border border-dashed border-border bg-card p-8 text-center text-sm text-muted-foreground">
-            No pending KYC submissions.
+      <AdminPageHeader
+        eyebrow="Compliance"
+        title="Verifications"
+        description="Review artisan Ghana Card, selfie, and liveness frames, then approve or reject."
+        actions={
+          <div className="flex gap-2">
+            <div className="rounded-xl border border-border bg-card px-3.5 py-2 text-center">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">KYC queue</p>
+              <p className="text-lg font-extrabold text-foreground tabular-nums">{pendingKyc.length}</p>
+            </div>
+            <div className="rounded-xl border border-border bg-card px-3.5 py-2 text-center">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Legacy</p>
+              <p className="text-lg font-extrabold text-foreground tabular-nums">{items.length}</p>
+            </div>
           </div>
+        }
+      />
+
+      {error && (
+        <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl px-4 py-3">{error}</p>
+      )}
+
+      <section className="space-y-3">
+        <h2 className="text-lg font-bold text-foreground">KYC review queue</h2>
+        {pendingKyc.length === 0 ? (
+          <EmptyState icon="ShieldCheckIcon" title="No pending KYC submissions" />
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {pendingKyc.map((item) => (
               <KycCard
                 key={item.id}
@@ -143,9 +199,9 @@ export default function AdminVerificationsPage() {
       </section>
 
       {otherKyc.length > 0 && (
-        <section className="space-y-4">
-          <h2 className="text-xl font-bold text-foreground">Recent KYC decisions</h2>
-          <div className="space-y-4">
+        <section className="space-y-3">
+          <h2 className="text-lg font-bold text-foreground">Recent KYC decisions</h2>
+          <div className="space-y-3">
             {otherKyc.map((item) => (
               <KycCard key={item.id} item={item} />
             ))}
@@ -153,48 +209,36 @@ export default function AdminVerificationsPage() {
         </section>
       )}
 
-      <section className="space-y-4">
-        <h2 className="text-xl font-bold text-foreground">Legacy document queue</h2>
+      <section className="space-y-3">
+        <h2 className="text-lg font-bold text-foreground">Legacy document queue</h2>
         {items.length === 0 ? (
-          <div className="rounded-3xl border border-dashed border-border bg-card p-8 text-center text-sm text-muted-foreground">
-            No pending legacy document submissions.
-          </div>
+          <EmptyState icon="DocumentTextIcon" title="No pending legacy document submissions" />
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {items.map((item) => (
-              <div key={item.id} className="rounded-3xl border border-border bg-card p-6 space-y-4">
-                <div>
-                  <p className="text-lg font-bold text-foreground">{item.artisan.user.name}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {item.artisan.trade} · {item.artisan.serviceArea || 'No area'} · {item.artisan.user.phone}
-                  </p>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Ghana Card: {item.ghanaCardNumber} · Guarantor: {item.guarantorName} ({item.guarantorPhone})
-                  </p>
+              <div key={item.id} className="rounded-2xl border border-border bg-card p-5 space-y-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="text-base font-bold text-foreground">{item.artisan.user.name}</p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {item.artisan.trade} · {item.artisan.serviceArea || 'No area'} · {item.artisan.user.phone}
+                    </p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Ghana Card: {item.ghanaCardNumber || '—'} · Guarantor: {item.guarantorName || '—'} (
+                      {item.guarantorPhone || '—'})
+                    </p>
+                  </div>
+                  <StatusBadge tone="warning">Pending</StatusBadge>
                 </div>
-                <div className="flex flex-wrap gap-3 text-sm">
-                  {item.ghanaCardUrl && (
-                    <a href={item.ghanaCardUrl} target="_blank" rel="noreferrer" className="text-primary font-semibold">
-                      Ghana Card
-                    </a>
-                  )}
-                  {item.policeReportUrl && (
-                    <a href={item.policeReportUrl} target="_blank" rel="noreferrer" className="text-primary font-semibold">
-                      Police report
-                    </a>
-                  )}
-                  {item.residenceProofUrl && (
-                    <a href={item.residenceProofUrl} target="_blank" rel="noreferrer" className="text-primary font-semibold">
-                      Residence proof
-                    </a>
-                  )}
-                  {item.skillsEvidenceUrls?.map((url) => (
-                    <a key={url} href={url} target="_blank" rel="noreferrer" className="text-primary font-semibold">
-                      Evidence
-                    </a>
+                <div className="flex flex-wrap gap-2">
+                  {item.ghanaCardUrl && <DocChip href={item.ghanaCardUrl} label="Ghana Card" />}
+                  {item.policeReportUrl && <DocChip href={item.policeReportUrl} label="Police report" />}
+                  {item.residenceProofUrl && <DocChip href={item.residenceProofUrl} label="Residence proof" />}
+                  {item.skillsEvidenceUrls?.map((url, i) => (
+                    <DocChip key={url} href={url} label={`Evidence ${i + 1}`} />
                   ))}
                 </div>
-                <div className="flex gap-3">
+                <div className="flex gap-2">
                   <Button
                     type="button"
                     loading={busyId === item.id}
@@ -233,44 +277,49 @@ function KycCard({
   onApprove?: () => void;
   onReject?: () => void;
 }) {
+  const thumbs = [
+    item.documentFrontUrl && { href: item.documentFrontUrl, label: 'Front' },
+    item.documentBackUrl && { href: item.documentBackUrl, label: 'Back' },
+    item.selfieUrl && { href: item.selfieUrl, label: 'Selfie' },
+    ...(item.livenessImageUrls || []).slice(0, 8).map((url, i) => ({ href: url, label: `F${i + 1}` })),
+  ].filter(Boolean) as { href: string; label: string }[];
+
   return (
-    <div className="rounded-3xl border border-border bg-card p-6 space-y-3">
-      <div>
-        <p className="text-lg font-bold text-foreground">{item.user.name}</p>
-        <p className="text-sm text-muted-foreground">
-          {item.firstName} {item.lastName} · {item.artisan?.trade || 'Artisan'} ·{' '}
-          {item.artisan?.serviceArea || 'No area'} · {item.user.phone}
-        </p>
-        <p className="text-sm text-muted-foreground mt-1">
-          KYC {item.status.toUpperCase()} · Ghana Card {item.ghanaCardNumber || '—'} · Artisan{' '}
-          {item.artisan?.verificationStatus || '—'}
-        </p>
-        {item.failureReason && <p className="text-sm text-red-600 mt-1">{item.failureReason}</p>}
+    <div className="rounded-2xl border border-border bg-card p-5 space-y-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-base font-bold text-foreground">{item.user.name}</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            {[item.firstName, item.lastName].filter(Boolean).join(' ') || '—'} ·{' '}
+            {item.artisan?.trade || 'Artisan'} · {item.artisan?.serviceArea || 'No area'} · {item.user.phone}
+          </p>
+          <p className="text-sm text-muted-foreground mt-1">
+            Ghana Card {item.ghanaCardNumber || '—'} · Artisan {item.artisan?.verificationStatus || '—'}
+          </p>
+          {item.failureReason && <p className="text-sm text-red-600 mt-1">{item.failureReason}</p>}
+        </div>
+        <StatusBadge tone={kycTone(item.status)}>{item.status}</StatusBadge>
       </div>
-      <div className="flex flex-wrap gap-3 text-sm">
-        {item.documentFrontUrl && (
-          <a href={item.documentFrontUrl} target="_blank" rel="noreferrer" className="text-primary font-semibold">
-            Card front
-          </a>
-        )}
-        {item.documentBackUrl && (
-          <a href={item.documentBackUrl} target="_blank" rel="noreferrer" className="text-primary font-semibold">
-            Card back
-          </a>
-        )}
-        {item.selfieUrl && (
-          <a href={item.selfieUrl} target="_blank" rel="noreferrer" className="text-primary font-semibold">
-            Selfie
-          </a>
-        )}
+
+      {thumbs.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {thumbs.map((t) => (
+            <Thumb key={`${t.label}-${t.href}`} href={t.href} label={t.label} />
+          ))}
+        </div>
+      )}
+
+      <div className="flex flex-wrap gap-2">
+        {item.documentFrontUrl && <DocChip href={item.documentFrontUrl} label="Card front" />}
+        {item.documentBackUrl && <DocChip href={item.documentBackUrl} label="Card back" />}
+        {item.selfieUrl && <DocChip href={item.selfieUrl} label="Selfie" />}
         {item.livenessImageUrls?.slice(0, 8).map((url, i) => (
-          <a key={url} href={url} target="_blank" rel="noreferrer" className="text-primary font-semibold">
-            Frame {i + 1}
-          </a>
+          <DocChip key={url} href={url} label={`Frame ${i + 1}`} />
         ))}
       </div>
+
       {item.status === 'pending' && onApprove && onReject && (
-        <div className="flex gap-3 pt-1">
+        <div className="flex gap-2 pt-1">
           <Button type="button" loading={busy} onClick={onApprove} className="!min-h-[40px]">
             Approve
           </Button>

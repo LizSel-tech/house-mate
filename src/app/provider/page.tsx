@@ -3,15 +3,15 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import Icon from '@/components/ui/AppIcon';
+import { BarChart, LineChart } from '@/components/admin/Charts';
 
 type Booking = {
   id: string;
   status: string;
   location: string | null;
-  problemDescription: string | null;
   agreedPrice: string | number | null;
   createdAt: string;
-  user: { name: string; phone: string };
+  user: { name: string };
   service: { title: string } | null;
   payment: { escrowStatus: string; amount: string | number; commission: string | number } | null;
 };
@@ -35,6 +35,25 @@ function verifyClass(status: string) {
   if (status === 'approved') return 'bg-green-100 text-green-800';
   if (status === 'rejected') return 'bg-red-100 text-red-700';
   return 'bg-amber-100 text-amber-800';
+}
+
+function monthKey(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function monthLabel(key: string) {
+  const [y, m] = key.split('-').map(Number);
+  return new Date(y, m - 1, 1).toLocaleString(undefined, { month: 'short' });
+}
+
+function lastNMonths(n: number) {
+  const keys: string[] = [];
+  const now = new Date();
+  for (let i = n - 1; i >= 0; i -= 1) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    keys.push(monthKey(d));
+  }
+  return keys;
 }
 
 export default function ProviderDashboardPage() {
@@ -76,9 +95,7 @@ export default function ProviderDashboardPage() {
 
   const stats = useMemo(() => {
     const newRequests = bookings.filter((b) => b.status === 'requested').length;
-    const active = bookings.filter((b) =>
-      ['accepted', 'in_progress'].includes(b.status)
-    ).length;
+    const active = bookings.filter((b) => ['accepted', 'in_progress'].includes(b.status)).length;
     let held = 0;
     let released = 0;
     let paidJobs = 0;
@@ -94,8 +111,33 @@ export default function ProviderDashboardPage() {
     return { newRequests, active, held, released, paidJobs, total: bookings.length };
   }, [bookings]);
 
-  const checklist = useMemo(() => {
-    return [
+  const months = useMemo(() => lastNMonths(6), []);
+
+  const jobsByMonth = useMemo(
+    () =>
+      months.map((month) => ({
+        label: monthLabel(month),
+        count: bookings.filter((b) => monthKey(new Date(b.createdAt)) === month).length,
+      })),
+    [bookings, months],
+  );
+
+  const earningsByMonth = useMemo(
+    () =>
+      months.map((month) => {
+        let total = 0;
+        for (const b of bookings) {
+          if (!b.payment || b.payment.escrowStatus !== 'released') continue;
+          if (monthKey(new Date(b.createdAt)) !== month) continue;
+          total += Number(b.payment.amount) - Number(b.payment.commission || 0);
+        }
+        return { label: monthLabel(month), count: Math.round(total) };
+      }),
+    [bookings, months],
+  );
+
+  const checklist = useMemo(
+    () => [
       {
         id: 'verify',
         done: verificationStatus === 'approved',
@@ -114,8 +156,9 @@ export default function ProviderDashboardPage() {
         label: 'Receive your first job request',
         href: '/provider/jobs',
       },
-    ];
-  }, [verificationStatus, serviceCount, stats.total]);
+    ],
+    [verificationStatus, serviceCount, stats.total],
+  );
 
   const attentionItems = useMemo(() => {
     const items: { id: string; title: string; href: string; tone: string }[] = [];
@@ -149,22 +192,22 @@ export default function ProviderDashboardPage() {
     return items;
   }, [verificationStatus, serviceCount, stats.newRequests]);
 
-  const recent = bookings.slice(0, 4);
+  const recent = bookings.slice(0, 5);
   const setupDone = checklist.every((c) => c.done);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
         <div>
-          <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">
-            Service Provider
+          <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5">
+            Overview
           </p>
-          <h1 className="text-3xl font-extrabold text-foreground tracking-tight">
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight">
             Hello{name ? `, ${name}` : ''}
           </h1>
-          <p className="mt-2 text-muted-foreground max-w-xl">
+          <p className="mt-1.5 text-sm text-muted-foreground max-w-xl">
             {trade ? `${trade.charAt(0).toUpperCase()}${trade.slice(1)} · ` : ''}
-            Manage jobs, services, and payouts on Fixora.
+            Track requests, jobs, and earnings on Fixora.
           </p>
           <span
             className={`inline-flex mt-3 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${verifyClass(verificationStatus)}`}
@@ -174,7 +217,7 @@ export default function ProviderDashboardPage() {
         </div>
         <Link
           href="/provider/jobs"
-          className="inline-flex items-center justify-center gap-2 bg-primary text-primary-foreground px-5 py-3 rounded-full text-xs font-bold uppercase tracking-widest min-h-[44px]"
+          className="inline-flex items-center justify-center gap-2 bg-primary text-primary-foreground px-5 py-3 rounded-xl text-xs font-bold uppercase tracking-widest min-h-[44px]"
         >
           <Icon name="BriefcaseIcon" size={16} />
           Job requests
@@ -182,38 +225,57 @@ export default function ProviderDashboardPage() {
         </Link>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        {[
-          { label: 'New requests', value: String(stats.newRequests), icon: 'InboxIcon' },
-          { label: 'Active jobs', value: String(stats.active), icon: 'BriefcaseIcon' },
-          { label: 'In escrow', value: formatGhs(stats.held), icon: 'LockClosedIcon' },
-          { label: 'Released', value: formatGhs(stats.released), icon: 'BanknotesIcon' },
-        ].map((stat) => (
-          <div key={stat.label} className="rounded-3xl border border-border bg-card p-4 sm:p-5 relative overflow-hidden">
-            <div className="absolute -right-3 -top-3 w-16 h-16 rounded-full bg-primary/5" />
-            <div className="w-9 h-9 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mb-3">
-              <Icon name={stat.icon} size={18} />
+      <div className="grid sm:grid-cols-2 gap-3">
+        <Link
+          href="/provider/jobs"
+          className="rounded-2xl border border-border bg-card p-5 hover:border-primary/35 transition-colors"
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+              <Icon name="InboxIcon" size={18} />
             </div>
-            <p className="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-muted-foreground">
-              {stat.label}
-            </p>
-            <p className="mt-1.5 text-xl sm:text-2xl font-extrabold text-foreground tracking-tight">
-              {loading ? '…' : stat.value}
-            </p>
+            <span className="text-[10px] font-bold uppercase tracking-widest text-primary">Open</span>
           </div>
-        ))}
+          <p className="mt-3 text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+            New requests
+          </p>
+          <p className="mt-1 text-3xl font-extrabold text-foreground tabular-nums">
+            {loading ? '…' : stats.newRequests}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">{stats.active} active jobs in progress</p>
+        </Link>
+        <Link
+          href="/provider/earnings"
+          className="rounded-2xl border border-border bg-card p-5 hover:border-primary/35 transition-colors"
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+              <Icon name="LockClosedIcon" size={18} />
+            </div>
+            <span className="text-[10px] font-bold uppercase tracking-widest text-primary">Open</span>
+          </div>
+          <p className="mt-3 text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+            Held in escrow
+          </p>
+          <p className="mt-1 text-3xl font-extrabold text-foreground tabular-nums">
+            {loading ? '…' : formatGhs(stats.held)}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {loading ? '…' : `${formatGhs(stats.released)} released to date`}
+          </p>
+        </Link>
       </div>
 
       {attentionItems.length > 0 && (
         <div className="space-y-2">
-          <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">
+          <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
             Needs attention
           </h2>
           {attentionItems.map((item) => (
             <Link
               key={item.id}
               href={item.href}
-              className={`flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-sm font-medium ${item.tone}`}
+              className={`flex items-center justify-between gap-3 rounded-xl border px-4 py-3 text-sm font-medium ${item.tone}`}
             >
               <span>{item.title}</span>
               <Icon name="ChevronRightIcon" size={16} />
@@ -222,34 +284,65 @@ export default function ProviderDashboardPage() {
         </div>
       )}
 
+      <div className="grid lg:grid-cols-2 gap-4">
+        <section className="rounded-2xl border border-border bg-card overflow-hidden">
+          <div className="px-5 py-4 border-b border-border">
+            <h2 className="text-base font-bold text-foreground">Jobs · 6 months</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">Monthly booking volume</p>
+          </div>
+          <div className="p-5">
+            {loading ? (
+              <div className="h-48 rounded-xl bg-muted/50 animate-pulse" />
+            ) : (
+              <BarChart legend="Jobs" data={jobsByMonth} />
+            )}
+          </div>
+        </section>
+        <section className="rounded-2xl border border-border bg-card overflow-hidden">
+          <div className="px-5 py-4 border-b border-border">
+            <h2 className="text-base font-bold text-foreground">Earnings · 6 months</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">Released payouts (GHS, net of commission)</p>
+          </div>
+          <div className="p-5">
+            {loading ? (
+              <div className="h-48 rounded-xl bg-muted/50 animate-pulse" />
+            ) : (
+              <LineChart legend="Released earnings" data={earningsByMonth} />
+            )}
+          </div>
+        </section>
+      </div>
+
       {!setupDone && (
-        <div className="rounded-3xl border border-border bg-card p-5 sm:p-6">
-          <h2 className="text-lg font-bold text-foreground">Get set up</h2>
+        <section className="rounded-2xl border border-border bg-card p-5">
+          <h2 className="text-base font-bold text-foreground">Get set up</h2>
           <p className="text-sm text-muted-foreground mt-1">Complete these steps to start winning jobs.</p>
-          <ul className="mt-4 space-y-3">
+          <ul className="mt-4 space-y-2">
             {checklist.map((item, i) => (
               <li key={item.id}>
                 <Link
                   href={item.href}
-                  className="flex items-center gap-3 rounded-2xl border border-border px-4 py-3 hover:border-primary/40 transition-colors"
+                  className="flex items-center gap-3 rounded-xl border border-border px-4 py-3 hover:border-primary/40 transition-colors"
                 >
                   <span
                     className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
-                      item.done
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-muted text-muted-foreground'
+                      item.done ? 'bg-green-100 text-green-800' : 'bg-muted text-muted-foreground'
                     }`}
                   >
                     {item.done ? '✓' : i + 1}
                   </span>
-                  <span className={`text-sm font-semibold ${item.done ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
+                  <span
+                    className={`text-sm font-semibold ${
+                      item.done ? 'text-muted-foreground line-through' : 'text-foreground'
+                    }`}
+                  >
                     {item.label}
                   </span>
                 </Link>
               </li>
             ))}
           </ul>
-        </div>
+        </section>
       )}
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -257,41 +350,41 @@ export default function ProviderDashboardPage() {
           { href: '/provider/jobs', title: 'Job requests', desc: 'Accept and manage bookings', icon: 'BriefcaseIcon' },
           { href: '/provider/services', title: 'Services', desc: `${serviceCount} listed`, icon: 'WrenchScrewdriverIcon' },
           { href: '/provider/earnings', title: 'Earnings', desc: `${stats.paidJobs} paid jobs`, icon: 'BanknotesIcon' },
-          { href: '/provider/verification', title: 'Verification', desc: verificationStatus, icon: 'ShieldCheckIcon' },
+          { href: '/provider/settings', title: 'Settings', desc: 'Privacy & preferences', icon: 'Cog6ToothIcon' },
         ].map((item) => (
           <Link
             key={item.href}
             href={item.href}
-            className="rounded-3xl border border-border bg-card p-5 hover:border-primary/40 transition-colors group"
+            className="rounded-2xl border border-border bg-card p-4 hover:border-primary/40 transition-colors group"
           >
-            <div className="w-9 h-9 rounded-2xl bg-secondary text-secondary-foreground flex items-center justify-center mb-3 group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+            <div className="w-9 h-9 rounded-xl bg-secondary text-secondary-foreground flex items-center justify-center mb-3 group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
               <Icon name={item.icon} size={18} />
             </div>
-            <h3 className="font-bold text-foreground">{item.title}</h3>
-            <p className="mt-1 text-sm text-muted-foreground capitalize">{item.desc}</p>
+            <h3 className="font-bold text-foreground text-sm">{item.title}</h3>
+            <p className="mt-1 text-xs text-muted-foreground capitalize">{item.desc}</p>
           </Link>
         ))}
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-4">
-        <div className="rounded-3xl border border-border bg-card p-5 sm:p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-lg font-bold text-foreground">Recent jobs</h2>
-              <p className="text-xs text-muted-foreground mt-0.5">Latest customer requests</p>
-            </div>
-            <Link href="/provider/jobs" className="text-xs font-bold uppercase tracking-widest text-primary">
-              View all
-            </Link>
+      <section className="rounded-2xl border border-border bg-card overflow-hidden">
+        <div className="px-5 py-4 border-b border-border flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-base font-bold text-foreground">Recent jobs</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">Latest customer requests</p>
           </div>
+          <Link href="/provider/jobs" className="text-xs font-bold uppercase tracking-widest text-primary">
+            View all
+          </Link>
+        </div>
+        <div className="p-5">
           {loading ? (
             <div className="space-y-3">
               {[1, 2, 3].map((i) => (
-                <div key={i} className="h-14 rounded-2xl bg-muted/50 animate-pulse" />
+                <div key={i} className="h-14 rounded-xl bg-muted/50 animate-pulse" />
               ))}
             </div>
           ) : recent.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+            <div className="rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
               No job requests yet. Get verified and list services to appear in search.
             </div>
           ) : (
@@ -318,36 +411,7 @@ export default function ProviderDashboardPage() {
             </ul>
           )}
         </div>
-
-        <div className="rounded-3xl border border-border bg-card p-5 sm:p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-lg font-bold text-foreground">Earnings snapshot</h2>
-              <p className="text-xs text-muted-foreground mt-0.5">Net of platform commission</p>
-            </div>
-            <Link href="/provider/earnings" className="text-xs font-bold uppercase tracking-widest text-primary">
-              Details
-            </Link>
-          </div>
-          <div className="space-y-4">
-            <div className="rounded-2xl bg-muted/40 p-4">
-              <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Available</p>
-              <p className="mt-1 text-2xl font-extrabold text-foreground">
-                {loading ? '…' : formatGhs(stats.released)}
-              </p>
-            </div>
-            <div className="rounded-2xl bg-muted/40 p-4">
-              <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Held in escrow</p>
-              <p className="mt-1 text-2xl font-extrabold text-foreground">
-                {loading ? '…' : formatGhs(stats.held)}
-              </p>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              {loading ? '…' : `${stats.paidJobs} paid job${stats.paidJobs === 1 ? '' : 's'} completed`}
-            </p>
-          </div>
-        </div>
-      </div>
+      </section>
     </div>
   );
 }

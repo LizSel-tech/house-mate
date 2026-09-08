@@ -2,6 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Icon from '@/components/ui/AppIcon';
+import {
+  AdminPageHeader,
+  StatusBadge,
+} from '@/components/admin/AdminUI';
 
 type RoleFilter = 'all' | 'user' | 'artisan' | 'admin';
 
@@ -41,16 +45,16 @@ function initials(name: string) {
     .join('');
 }
 
-function roleBadge(role: string) {
-  if (role === 'artisan') return 'bg-primary/10 text-primary';
-  if (role === 'admin') return 'bg-secondary text-secondary-foreground';
-  return 'bg-muted text-muted-foreground';
+function roleTone(role: string): 'success' | 'warning' | 'danger' | 'primary' | 'neutral' {
+  if (role === 'artisan') return 'primary';
+  if (role === 'admin') return 'neutral';
+  return 'warning';
 }
 
-function verifyBadge(status: string) {
-  if (status === 'approved') return 'bg-green-100 text-green-800';
-  if (status === 'rejected') return 'bg-red-100 text-red-700';
-  return 'bg-amber-100 text-amber-800';
+function verifyTone(status: string): 'success' | 'warning' | 'danger' | 'primary' | 'neutral' {
+  if (status === 'approved') return 'success';
+  if (status === 'rejected') return 'danger';
+  return 'warning';
 }
 
 function formatDate(iso: string) {
@@ -101,33 +105,32 @@ export default function AdminUsersPage() {
         u.phone.toLowerCase().includes(q) ||
         (u.email || '').toLowerCase().includes(q) ||
         (u.artisanProfile?.trade || '').toLowerCase().includes(q) ||
-        (u.location || '').toLowerCase().includes(q)
+        (u.location || '').toLowerCase().includes(q),
     );
   }, [users, query]);
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-extrabold text-foreground tracking-tight">Users & artisans</h1>
-          <p className="mt-2 text-muted-foreground">
-            Browse and filter everyone on the platform by account type.
-          </p>
-        </div>
-        <div className="relative w-full lg:w-72">
-          <Icon
-            name="MagnifyingGlassIcon"
-            size={18}
-            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground"
-          />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search name, phone, trade…"
-            className="w-full pl-10 pr-4 py-3 rounded-2xl border border-border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-          />
-        </div>
-      </div>
+      <AdminPageHeader
+        eyebrow="Directory"
+        title="Users & artisans"
+        description="Browse and filter everyone on the platform by account type."
+        actions={
+          <div className="relative w-full sm:w-72">
+            <Icon
+              name="MagnifyingGlassIcon"
+              size={18}
+              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground"
+            />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search name, phone, trade…"
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+          </div>
+        }
+      />
 
       <div className="flex flex-wrap gap-2">
         {FILTERS.map((f) => {
@@ -138,7 +141,7 @@ export default function AdminUsersPage() {
               key={f.id}
               type="button"
               onClick={() => setRole(f.id)}
-              className={`px-4 py-2 rounded-full text-xs font-bold uppercase tracking-widest border transition-colors ${
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold uppercase tracking-widest border transition-colors ${
                 active
                   ? 'bg-primary text-primary-foreground border-primary'
                   : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/20'
@@ -153,29 +156,19 @@ export default function AdminUsersPage() {
 
       {error && <p className="text-sm text-red-600">{error}</p>}
 
-      <div className="rounded-3xl border border-border bg-card overflow-hidden">
+      <div className="rounded-2xl border border-border bg-card overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[720px] text-left">
+          <table className="w-full min-w-[820px] text-left">
             <thead>
               <tr className="border-b border-border bg-muted/40">
-                <th className="px-5 py-3.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                  User
-                </th>
-                <th className="px-5 py-3.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                  Type
-                </th>
-                <th className="px-5 py-3.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                  Contact
-                </th>
-                <th className="px-5 py-3.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                  Profile
-                </th>
-                <th className="px-5 py-3.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                  Status
-                </th>
-                <th className="px-5 py-3.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                  Joined
-                </th>
+                {['User', 'Type', 'Contact', 'Profile', 'Status', 'Joined'].map((h) => (
+                  <th
+                    key={h}
+                    className="px-5 py-3.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground"
+                  >
+                    {h}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
@@ -201,7 +194,7 @@ export default function AdminUsersPage() {
                   >
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-2xl bg-secondary text-secondary-foreground flex items-center justify-center text-xs font-bold shrink-0">
+                        <div className="w-10 h-10 rounded-xl bg-secondary text-secondary-foreground flex items-center justify-center text-xs font-bold shrink-0">
                           {initials(u.name) || '?'}
                         </div>
                         <div className="min-w-0">
@@ -213,15 +206,13 @@ export default function AdminUsersPage() {
                       </div>
                     </td>
                     <td className="px-5 py-4">
-                      <span
-                        className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${roleBadge(u.role)}`}
-                      >
+                      <StatusBadge tone={roleTone(u.role)}>
                         {u.role === 'user' ? 'customer' : u.role}
-                      </span>
+                      </StatusBadge>
                     </td>
                     <td className="px-5 py-4">
                       <p className="text-sm text-foreground">{u.phone}</p>
-                      <p className="text-xs text-muted-foreground truncate max-w-[180px]">
+                      <p className="text-xs text-muted-foreground truncate max-w-[200px]">
                         {u.email || 'No email'}
                       </p>
                     </td>
@@ -233,7 +224,8 @@ export default function AdminUsersPage() {
                           </p>
                           <p className="text-xs text-muted-foreground">
                             {u.artisanProfile.jobsCompleted} jobs ·{' '}
-                            {Number(u.artisanProfile.averageRating).toFixed(1)}★
+                            {Number(u.artisanProfile.averageRating).toFixed(1)}★ ·{' '}
+                            {u.artisanProfile.subscriptionStatus}
                           </p>
                         </div>
                       ) : (
@@ -242,11 +234,9 @@ export default function AdminUsersPage() {
                     </td>
                     <td className="px-5 py-4">
                       {u.artisanProfile ? (
-                        <span
-                          className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${verifyBadge(u.artisanProfile.verificationStatus)}`}
-                        >
+                        <StatusBadge tone={verifyTone(u.artisanProfile.verificationStatus)}>
                           {u.artisanProfile.verificationStatus}
-                        </span>
+                        </StatusBadge>
                       ) : (
                         <span className="text-sm text-muted-foreground">Active</span>
                       )}

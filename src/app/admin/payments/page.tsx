@@ -1,8 +1,16 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import Icon from '@/components/ui/AppIcon';
-import { Button } from '@/components/ui/Button';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  AdminPageHeader,
+  EmptyState,
+  KpiCard,
+  StatusBadge,
+  paymentStatusTone,
+  formatDateTime,
+  formatGhs,
+} from '@/components/admin/AdminUI';
+import { ConfirmModal, IconActionButton } from '@/components/admin/AdminModal';
 
 type Payment = {
   id: string;
@@ -19,12 +27,19 @@ type Payment = {
   reviewedBy: { name: string } | null;
 };
 
+type ModalState =
+  | { type: 'confirm'; payment: Payment }
+  | { type: 'reject'; payment: Payment }
+  | null;
+
 export default function AdminPaymentsPage() {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [busyId, setBusyId] = useState('');
   const [filter, setFilter] = useState<'pending' | 'all'>('pending');
+  const [modal, setModal] = useState<ModalState>(null);
+  const [rejectReason, setRejectReason] = useState('');
 
   const load = async () => {
     const res = await fetch('/api/admin/payments');
@@ -40,15 +55,11 @@ export default function AdminPaymentsPage() {
     load();
   }, []);
 
-  const decide = async (id: string, status: 'confirmed' | 'rejected') => {
+  const decide = async (id: string, status: 'confirmed' | 'rejected', reason?: string) => {
     setError('');
     setMessage('');
     setBusyId(id);
     try {
-      const reason =
-        status === 'rejected'
-          ? window.prompt('Optional rejection reason:') || undefined
-          : undefined;
       const res = await fetch('/api/admin/payments', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -70,6 +81,8 @@ export default function AdminPaymentsPage() {
       } else {
         setMessage('Payment rejected.');
       }
+      setModal(null);
+      setRejectReason('');
       await load();
     } finally {
       setBusyId('');
@@ -79,48 +92,56 @@ export default function AdminPaymentsPage() {
   const visible =
     filter === 'pending' ? payments.filter((p) => p.status === 'pending') : payments;
   const pendingCount = payments.filter((p) => p.status === 'pending').length;
+  const confirmedCount = payments.filter((p) => p.status === 'confirmed').length;
+  const confirmedAmount = useMemo(
+    () =>
+      payments
+        .filter((p) => p.status === 'confirmed')
+        .reduce((sum, p) => sum + Number(p.amount || 0), 0),
+    [payments],
+  );
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">
-            Registrations
-          </p>
-          <h1 className="text-3xl font-extrabold text-foreground tracking-tight">Signup payments</h1>
-          <p className="mt-2 text-muted-foreground">
-            Confirm payment proofs to activate accounts and auto-send login OTPs.
-          </p>
-        </div>
-        <div className="rounded-2xl border border-border bg-card px-4 py-3">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Pending</p>
-          <p className="text-xl font-extrabold text-foreground">{pendingCount}</p>
-        </div>
+      <AdminPageHeader
+        eyebrow="Registrations"
+        title="Signup payments"
+        description="Confirm payment proofs to activate accounts and auto-send login OTPs."
+      />
+
+      <div className="grid sm:grid-cols-2 gap-3">
+        <KpiCard
+          label="Pending reviews"
+          value={String(pendingCount)}
+          hint="Awaiting confirmation"
+          icon="ClockIcon"
+        />
+        <KpiCard
+          label="Confirmed"
+          value={String(confirmedCount)}
+          hint={`${formatGhs(confirmedAmount)} total confirmed`}
+          icon="CheckBadgeIcon"
+        />
       </div>
 
       <div className="flex gap-2">
-        <button
-          type="button"
-          onClick={() => setFilter('pending')}
-          className={`px-4 py-2 rounded-full text-xs font-bold uppercase tracking-widest border ${
-            filter === 'pending'
-              ? 'bg-primary text-primary-foreground border-primary'
-              : 'border-border text-muted-foreground'
-          }`}
-        >
-          Pending
-        </button>
-        <button
-          type="button"
-          onClick={() => setFilter('all')}
-          className={`px-4 py-2 rounded-full text-xs font-bold uppercase tracking-widest border ${
-            filter === 'all'
-              ? 'bg-primary text-primary-foreground border-primary'
-              : 'border-border text-muted-foreground'
-          }`}
-        >
-          All
-        </button>
+        {([
+          { id: 'pending' as const, label: 'Pending' },
+          { id: 'all' as const, label: 'All' },
+        ]).map((f) => (
+          <button
+            key={f.id}
+            type="button"
+            onClick={() => setFilter(f.id)}
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold uppercase tracking-widest border ${
+              filter === f.id
+                ? 'bg-primary text-primary-foreground border-primary'
+                : 'border-border text-muted-foreground'
+            }`}
+          >
+            {f.label}
+          </button>
+        ))}
       </div>
 
       {message && (
@@ -131,90 +152,157 @@ export default function AdminPaymentsPage() {
       )}
 
       {visible.length === 0 ? (
-        <div className="rounded-3xl border border-dashed border-border bg-card p-10 text-center">
-          <Icon name="BanknotesIcon" size={28} className="mx-auto text-muted-foreground mb-3" />
-          <p className="font-semibold text-foreground">No payments here</p>
-          <p className="text-sm text-muted-foreground mt-1">New signup payments will appear in this queue.</p>
-        </div>
+        <EmptyState
+          icon="BanknotesIcon"
+          title="No payments here"
+          description="New signup payments will appear in this queue."
+        />
       ) : (
-        <div className="space-y-4">
-          {visible.map((p) => (
-            <div key={p.id} className="rounded-3xl border border-border bg-card p-5 sm:p-6 space-y-4">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <p className="text-lg font-bold text-foreground">{p.user.name}</p>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {p.user.phone}
-                    {p.user.email ? ` · ${p.user.email}` : ''} · {p.role}
-                  </p>
-                </div>
-                <span
-                  className={`text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full ${
-                    p.status === 'confirmed'
-                      ? 'bg-green-100 text-green-800'
-                      : p.status === 'rejected'
-                        ? 'bg-red-100 text-red-700'
-                        : 'bg-amber-100 text-amber-800'
-                  }`}
-                >
-                  {p.status}
-                </span>
-              </div>
-
-              <div className="grid sm:grid-cols-3 gap-3 text-sm">
-                <div className="rounded-2xl bg-muted/40 p-3">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Amount</p>
-                  <p className="font-bold text-foreground mt-1">GHS {Number(p.amount).toFixed(2)}</p>
-                </div>
-                <div className="rounded-2xl bg-muted/40 p-3">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Method</p>
-                  <p className="font-bold text-foreground mt-1">{p.method.name}</p>
-                </div>
-                <div className="rounded-2xl bg-muted/40 p-3">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Reference</p>
-                  <p className="font-bold text-foreground mt-1 break-all">{p.reference}</p>
-                </div>
-              </div>
-
-              <a
-                href={p.proofUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-2 text-sm font-semibold text-primary"
-              >
-                <Icon name="DocumentTextIcon" size={16} />
-                View payment proof
-              </a>
-
-              {p.rejectionReason && (
-                <p className="text-sm text-red-600">Reason: {p.rejectionReason}</p>
-              )}
-
-              {p.status === 'pending' && (
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    type="button"
-                    loading={busyId === p.id}
-                    onClick={() => decide(p.id, 'confirmed')}
-                    className="!min-h-[40px]"
-                  >
-                    Confirm & send OTP
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={busyId === p.id}
-                    onClick={() => decide(p.id, 'rejected')}
-                    className="!min-h-[40px]"
-                  >
-                    Reject
-                  </Button>
-                </div>
-              )}
-            </div>
-          ))}
+        <div className="rounded-2xl border border-border bg-card overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[920px] text-left">
+              <thead>
+                <tr className="border-b border-border bg-muted/40">
+                  {['User', 'Role', 'Method', 'Amount', 'Reference', 'Status', 'Submitted', 'Actions'].map(
+                    (h) => (
+                      <th
+                        key={h}
+                        className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground"
+                      >
+                        {h}
+                      </th>
+                    ),
+                  )}
+                </tr>
+              </thead>
+              <tbody>
+                {visible.map((p) => (
+                  <tr key={p.id} className="border-b border-border last:border-0 hover:bg-muted/20">
+                    <td className="px-4 py-3.5">
+                      <p className="font-semibold text-foreground text-sm">{p.user.name}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {p.user.phone}
+                        {p.user.email ? ` · ${p.user.email}` : ''}
+                      </p>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <StatusBadge tone="neutral">{p.role}</StatusBadge>
+                    </td>
+                    <td className="px-4 py-3.5 text-sm text-muted-foreground">{p.method.name}</td>
+                    <td className="px-4 py-3.5 text-sm font-semibold text-foreground whitespace-nowrap">
+                      {formatGhs(Number(p.amount))}
+                    </td>
+                    <td className="px-4 py-3.5 text-xs text-muted-foreground max-w-[140px] break-all">
+                      {p.reference}
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <StatusBadge tone={paymentStatusTone(p.status)}>{p.status}</StatusBadge>
+                      {p.rejectionReason && (
+                        <p className="text-[11px] text-red-600 mt-1 max-w-[140px]">{p.rejectionReason}</p>
+                      )}
+                    </td>
+                    <td className="px-4 py-3.5 text-xs text-muted-foreground whitespace-nowrap">
+                      {formatDateTime(p.createdAt)}
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <div className="flex items-center gap-1.5">
+                        <IconActionButton
+                          href={p.proofUrl}
+                          icon="DocumentTextIcon"
+                          label="View proof"
+                          tone="neutral"
+                        />
+                        {p.status === 'pending' && (
+                          <>
+                            <IconActionButton
+                              icon="CheckIcon"
+                              label="Confirm payment"
+                              tone="success"
+                              disabled={busyId === p.id}
+                              onClick={() => setModal({ type: 'confirm', payment: p })}
+                            />
+                            <IconActionButton
+                              icon="XMarkIcon"
+                              label="Reject payment"
+                              tone="danger"
+                              disabled={busyId === p.id}
+                              onClick={() => {
+                                setRejectReason('');
+                                setModal({ type: 'reject', payment: p });
+                              }}
+                            />
+                          </>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
+
+      <ConfirmModal
+        open={modal?.type === 'confirm'}
+        title="Confirm payment?"
+        description={
+          modal?.type === 'confirm'
+            ? `Activate ${modal.payment.user.name}'s account and email a login OTP${
+                modal.payment.user.email ? ` to ${modal.payment.user.email}` : ''
+              }.`
+            : undefined
+        }
+        icon="CheckCircleIcon"
+        confirmLabel="Confirm & send OTP"
+        loading={busyId === modal?.payment.id}
+        onClose={() => setModal(null)}
+        onConfirm={() => {
+          if (modal?.type === 'confirm') void decide(modal.payment.id, 'confirmed');
+        }}
+      >
+        {modal?.type === 'confirm' && (
+          <div className="rounded-xl border border-border bg-muted/40 p-3 text-sm space-y-1">
+            <p className="font-semibold text-foreground">{formatGhs(Number(modal.payment.amount))}</p>
+            <p className="text-muted-foreground">
+              {modal.payment.method.name} · Ref {modal.payment.reference}
+            </p>
+          </div>
+        )}
+      </ConfirmModal>
+
+      <ConfirmModal
+        open={modal?.type === 'reject'}
+        title="Reject payment?"
+        description={
+          modal?.type === 'reject'
+            ? `Reject ${modal.payment.user.name}'s signup payment. The account will stay pending.`
+            : undefined
+        }
+        icon="XCircleIcon"
+        confirmLabel="Reject payment"
+        tone="danger"
+        loading={busyId === modal?.payment.id}
+        onClose={() => setModal(null)}
+        onConfirm={() => {
+          if (modal?.type === 'reject') {
+            void decide(modal.payment.id, 'rejected', rejectReason.trim() || undefined);
+          }
+        }}
+      >
+        <label className="block space-y-2">
+          <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+            Reason (optional)
+          </span>
+          <textarea
+            value={rejectReason}
+            onChange={(e) => setRejectReason(e.target.value)}
+            rows={3}
+            placeholder="Shown to the user if provided"
+            className="w-full px-3.5 py-2.5 rounded-xl border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          />
+        </label>
+      </ConfirmModal>
     </div>
   );
 }

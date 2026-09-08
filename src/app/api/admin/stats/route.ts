@@ -15,22 +15,48 @@ function daysAgo(n: number) {
   return startOfDay(d);
 }
 
+function startOfMonth(d: Date) {
+  return new Date(d.getFullYear(), d.getMonth(), 1);
+}
+
+function monthsAgo(n: number) {
+  const d = new Date();
+  d.setDate(1);
+  d.setHours(0, 0, 0, 0);
+  d.setMonth(d.getMonth() - n);
+  return startOfMonth(d);
+}
+
+function monthKey(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function monthLabel(key: string) {
+  const [y, m] = key.split('-').map(Number);
+  return new Date(y, m - 1, 1).toLocaleString(undefined, { month: 'short' });
+}
+
 export async function GET() {
   const { user, error } = await requireSession(['admin']);
   if (error || !user) return error!;
 
   const since = daysAgo(13);
+  const sinceMonth = monthsAgo(11);
 
   const [
     usersByRole,
     artisansByStatus,
     bookingsByStatus,
     pendingKycRow,
+    pendingPaymentsRow,
+    unreadNotificationsRow,
     heldEscrow,
     recentUsers,
     recentBookings,
     usersLast14,
     bookingsLast14,
+    usersLast12Months,
+    bookingsLast12Months,
   ] = await Promise.all([
     query<{ role: UserRole; count: string }>(
       `SELECT role, count(*)::text AS count FROM users GROUP BY role`,
@@ -44,11 +70,17 @@ export async function GET() {
     queryOne<{ count: string }>(
       `SELECT count(*)::text AS count FROM kyc_verifications WHERE status = 'pending'`,
     ),
+    queryOne<{ count: string }>(
+      `SELECT count(*)::text AS count FROM signup_payments WHERE status = 'pending'`,
+    ),
+    queryOne<{ count: string }>(
+      `SELECT count(*)::text AS count FROM admin_notifications WHERE read_at IS NULL`,
+    ),
     queryOne<{ amount: string | null }>(
       `SELECT coalesce(sum(amount), 0)::text AS amount FROM payments WHERE escrow_status = 'held'`,
     ),
     query(
-      `SELECT id, name, role, phone, created_at FROM users ORDER BY created_at DESC LIMIT 5`,
+      `SELECT id, name, role, phone, created_at FROM users ORDER BY created_at DESC LIMIT 8`,
     ),
     queryData(
       `SELECT to_jsonb(b) || jsonb_build_object(
@@ -64,7 +96,7 @@ export async function GET() {
        JOIN users au ON au.id = a.user_id
        LEFT JOIN payments p ON p.booking_id = b.id
        ORDER BY b.created_at DESC
-       LIMIT 5`,
+       LIMIT 8`,
     ),
     query<{ createdAt: Date }>(
       `SELECT created_at FROM users WHERE created_at >= $1 ORDER BY created_at ASC`,
@@ -73,6 +105,14 @@ export async function GET() {
     query<{ createdAt: Date }>(
       `SELECT created_at FROM bookings WHERE created_at >= $1 ORDER BY created_at ASC`,
       [since],
+    ),
+    query<{ createdAt: Date }>(
+      `SELECT created_at FROM users WHERE created_at >= $1 ORDER BY created_at ASC`,
+      [sinceMonth],
+    ),
+    query<{ createdAt: Date }>(
+      `SELECT created_at FROM bookings WHERE created_at >= $1 ORDER BY created_at ASC`,
+      [sinceMonth],
     ),
   ]);
 
@@ -92,10 +132,14 @@ export async function GET() {
   }
 
   const pendingKyc = Number(pendingKycRow?.count || 0);
+  const pendingPayments = Number(pendingPaymentsRow?.count || 0);
+  const unreadNotifications = Number(unreadNotificationsRow?.count || 0);
 
   const activeBookings = Object.entries(bookingCounts)
     .filter(([status]) => !['completed', 'cancelled'].includes(status))
     .reduce((sum, [, n]) => sum + n, 0);
+
+  const disputedBookings = Number(bookingCounts.disputed || 0);
 
   const dayKeys: string[] = [];
   for (let i = 13; i >= 0; i -= 1) {
@@ -114,7 +158,25 @@ export async function GET() {
       .length,
   }));
 
+  const monthKeys: string[] = [];
+  for (let i = 11; i >= 0; i -= 1) {
+    monthKeys.push(monthKey(monthsAgo(i)));
+  }
+
+  const userGrowthMonthly = monthKeys.map((month) => ({
+    month,
+    label: monthLabel(month),
+    count: usersLast12Months.filter((u) => monthKey(new Date(u.createdAt)) === month).length,
+  }));
+
+  const bookingGrowthMonthly = monthKeys.map((month) => ({
+    month,
+    label: monthLabel(month),
+    count: bookingsLast12Months.filter((b) => monthKey(new Date(b.createdAt)) === month).length,
+  }));
+
   return NextResponse.json({
+    generatedAt: new Date().toISOString(),
     kpis: {
       totalUsers: roleCounts.user + roleCounts.artisan + roleCounts.admin,
       customers: roleCounts.user,
@@ -123,6 +185,9 @@ export async function GET() {
       artisansApproved: verificationCounts.approved,
       artisansPending: verificationCounts.pending,
       pendingKyc,
+      pendingPayments,
+      unreadNotifications,
+      disputedBookings,
       activeBookings,
       totalBookings: Object.values(bookingCounts).reduce((a, b) => a + b, 0),
       heldEscrow: Number(heldEscrow?.amount || 0),
@@ -144,6 +209,8 @@ export async function GET() {
       ],
       userGrowth,
       bookingGrowth,
+      userGrowthMonthly,
+      bookingGrowthMonthly,
     },
     recent: {
       users: recentUsers,

@@ -6,6 +6,7 @@ const navItems: PortalNavItem[] = [
   { href: '/admin', label: 'Dashboard', icon: 'HomeIcon' },
   { href: '/admin/payments', label: 'Payments', icon: 'BanknotesIcon' },
   { href: '/admin/notifications', label: 'Notifications', icon: 'BellAlertIcon' },
+  { href: '/admin/chat', label: 'Chat', icon: 'ChatBubbleLeftRightIcon' },
   { href: '/admin/verifications', label: 'Verifications', icon: 'ShieldCheckIcon' },
   { href: '/admin/bookings', label: 'Bookings', icon: 'CalendarDaysIcon' },
   { href: '/admin/users', label: 'Users', icon: 'UsersIcon' },
@@ -24,7 +25,7 @@ export default async function AdminPortalLayout({
   }
 
   return (
-    <PortalShell user={user} title="Admin" navItems={navItems}>
+    <PortalShell user={user} title="Admin" navItems={navItems} wide>
       {children}
     </PortalShell>
   );

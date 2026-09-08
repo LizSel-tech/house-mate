@@ -8,6 +8,7 @@ const navItems: PortalNavItem[] = [
   { href: '/provider/services', label: 'Services', icon: 'WrenchScrewdriverIcon' },
   { href: '/provider/verification', label: 'Verification', icon: 'ShieldCheckIcon' },
   { href: '/provider/earnings', label: 'Earnings', icon: 'BanknotesIcon' },
+  { href: '/provider/settings', label: 'Settings', icon: 'Cog6ToothIcon' },
   { href: '/provider/profile', label: 'Profile', icon: 'UserCircleIcon' },
 ];
 
@@ -22,7 +23,7 @@ export default async function ProviderPortalLayout({
   }
 
   return (
-    <PortalShell user={user} title="Service Provider" navItems={navItems}>
+    <PortalShell user={user} title="Service Provider" navItems={navItems} wide>
       {children}
     </PortalShell>
   );

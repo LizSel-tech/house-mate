@@ -8,6 +8,11 @@ export default function PrivacyPage() {
         (Smile Identity when configured) and stored securely for fraud prevention and compliance.
       </p>
       <p className="mt-4 text-muted-foreground leading-relaxed">
+        Chat messages between customers and artisans may be reviewed by Fixora admins for safety,
+        fraud prevention, and dispute resolution when both participants allow admin chat review in
+        Settings. Do not share sensitive credentials or payment PINs in chat.
+      </p>
+      <p className="mt-4 text-muted-foreground leading-relaxed">
         By starting verification you consent to collection and processing of this data for KYC purposes.
         Contact support if you need data access or deletion requests.
       </p>
