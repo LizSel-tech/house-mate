@@ -13,6 +13,7 @@ function serializeUser(row: User) {
     location: row.location,
     accountStatus: row.accountStatus,
     avatarUrl: row.avatarUrl,
+    coverUrl: row.coverUrl ?? null,
     allowAdminChatReview: row.allowAdminChatReview !== false,
     createdAt: row.createdAt,
   };

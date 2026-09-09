@@ -134,22 +134,34 @@ export default function ChatPrivacySettings({
         </div>
       </section>
 
-      <section className="rounded-2xl border border-border bg-card p-5">
-        <h2 className="text-base font-bold text-foreground">Account</h2>
-        <p className="text-sm text-muted-foreground mt-1">
-          Update your name, email, and photo from your profile page.
-        </p>
-        <Link
-          href={
-            portalLabel.toLowerCase().includes('provider')
-              ? '/provider/profile'
-              : '/user/profile'
-          }
-          className="mt-4 inline-flex items-center gap-2 rounded-xl border border-border px-4 py-2.5 text-xs font-bold uppercase tracking-widest text-foreground hover:bg-muted transition-colors"
-        >
-          Open profile
-          <Icon name="ArrowRightIcon" size={16} />
-        </Link>
+      <section className="rounded-2xl border border-border bg-card overflow-hidden">
+        <div className="px-5 py-4 border-b border-border">
+          <h2 className="text-base font-bold text-foreground">Account</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Update your cover, photo, name, and email from your profile page
+          </p>
+        </div>
+        <div className="p-5">
+          <Link
+            href={
+              portalLabel.toLowerCase().includes('provider')
+                ? '/provider/profile'
+                : '/user/profile'
+            }
+            className="flex items-center gap-3 rounded-xl border border-border px-3.5 py-3 hover:bg-muted/40 transition-colors"
+          >
+            <span className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+              <Icon name="UserCircleIcon" size={20} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-foreground">Open profile</p>
+              <p className="text-xs text-muted-foreground">
+                Manage your public presence and contact details
+              </p>
+            </div>
+            <Icon name="ArrowRightIcon" size={16} className="text-muted-foreground shrink-0" />
+          </Link>
+        </div>
       </section>
     </div>
   );

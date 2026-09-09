@@ -343,49 +343,94 @@ export default function ProviderVerificationPage() {
 
   const liveCount = Math.max(livenessBlobs.length, kyc?.livenessImageUrls?.length || 0);
 
+  const stepIndex = steps.findIndex((s) => s.id === step);
+  const artisanTone =
+    profile?.verificationStatus === 'approved'
+      ? 'bg-green-100 text-green-800'
+      : profile?.verificationStatus === 'rejected'
+        ? 'bg-red-100 text-red-800'
+        : 'bg-primary/10 text-primary';
+  const kycTone =
+    kyc?.status === 'verified'
+      ? 'bg-green-100 text-green-800'
+      : kyc?.status === 'rejected' || kyc?.status === 'error'
+        ? 'bg-red-100 text-red-800'
+        : kyc?.status === 'pending'
+          ? 'bg-amber-100 text-amber-900'
+          : 'bg-muted text-muted-foreground';
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-extrabold text-foreground tracking-tight">Identity verification</h1>
-        <p className="mt-2 text-muted-foreground max-w-2xl">
+        <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5">
+          Trust
+        </p>
+        <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight">
+          Identity verification
+        </h1>
+        <p className="mt-1.5 text-sm text-muted-foreground max-w-2xl">
           Verify with your Ghana Card and a guided face check. Approved artisans can receive bookings.
         </p>
       </div>
 
-      <div className="rounded-3xl border border-border bg-card p-4 sm:p-6">
-        <p className="text-sm font-semibold text-foreground">
-          Artisan status:{' '}
-          <span className="uppercase tracking-widest text-primary">
-            {profile?.verificationStatus ? statusLabel(profile.verificationStatus) : '…'}
+      <div className="rounded-2xl border border-border bg-card overflow-hidden">
+        <div className="px-5 py-4 border-b border-border flex flex-wrap items-center gap-2">
+          <span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${artisanTone}`}>
+            Artisan · {profile?.verificationStatus ? statusLabel(profile.verificationStatus) : '…'}
           </span>
-        </p>
-        {kyc && (
-          <p className="text-sm text-muted-foreground mt-2">
-            KYC: {statusLabel(kyc.status)}
-            {kyc.failureReason ? ` · ${kyc.failureReason}` : ''}
-          </p>
-        )}
-        <ol className="mt-4 flex flex-wrap gap-2">
-          {steps.map((s, i) => (
-            <li
-              key={s.id}
-              className={`text-xs font-bold uppercase tracking-widest px-3 py-1.5 rounded-full border ${
-                step === s.id
-                  ? 'border-primary bg-primary text-primary-foreground'
-                  : 'border-border text-muted-foreground'
-              }`}
-            >
-              {i + 1}. {s.label}
-            </li>
-          ))}
-        </ol>
+          {kyc && (
+            <span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${kycTone}`}>
+              KYC · {statusLabel(kyc.status)}
+            </span>
+          )}
+          {kyc?.failureReason && (
+            <span className="text-xs text-red-600 font-medium">{kyc.failureReason}</span>
+          )}
+        </div>
+        <div className="p-5">
+          <div className="mb-4 h-1.5 rounded-full bg-muted overflow-hidden">
+            <div
+              className="h-full rounded-full bg-primary transition-all duration-300"
+              style={{ width: `${((stepIndex + 1) / steps.length) * 100}%` }}
+            />
+          </div>
+          <ol className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+            {steps.map((s, i) => {
+              const active = step === s.id;
+              const done = i < stepIndex;
+              return (
+                <li
+                  key={s.id}
+                  className={`rounded-xl border px-3 py-2.5 text-center transition-colors ${
+                    active
+                      ? 'border-primary bg-primary text-primary-foreground'
+                      : done
+                        ? 'border-primary/30 bg-primary/5 text-foreground'
+                        : 'border-border text-muted-foreground'
+                  }`}
+                >
+                  <p className="text-[10px] font-bold uppercase tracking-widest opacity-70">
+                    Step {i + 1}
+                  </p>
+                  <p className="text-xs font-bold mt-0.5">{s.label}</p>
+                </li>
+              );
+            })}
+          </ol>
+        </div>
       </div>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
-      {success && <p className="text-sm text-green-700">{success}</p>}
+      {error && (
+        <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl px-4 py-3">{error}</p>
+      )}
+      {success && (
+        <p className="text-sm text-green-700 bg-green-50 border border-green-100 rounded-xl px-4 py-3">
+          {success}
+        </p>
+      )}
 
       {step === 'profile' && (
-        <form onSubmit={onProfileContinue} className="rounded-3xl border border-border bg-card p-6 space-y-4 max-w-2xl">
+        <form onSubmit={onProfileContinue} className="rounded-2xl border border-border bg-card p-6 space-y-4 max-w-2xl">
           <div className="grid sm:grid-cols-2 gap-4">
             <input
               value={firstName}
@@ -453,7 +498,7 @@ export default function ProviderVerificationPage() {
       )}
 
       {step === 'document' && (
-        <div className="rounded-3xl border border-border bg-card p-6 space-y-4 max-w-2xl">
+        <div className="rounded-2xl border border-border bg-card p-6 space-y-4 max-w-2xl">
           <p className="text-sm text-muted-foreground">
             Upload a clear photo of your Ghana Card. Front is required; back is optional.
           </p>
@@ -502,7 +547,7 @@ export default function ProviderVerificationPage() {
       )}
 
       {step === 'liveness' && (
-        <div className="rounded-3xl border border-border bg-card p-6 space-y-4 max-w-2xl">
+        <div className="rounded-2xl border border-border bg-card p-6 space-y-4 max-w-2xl">
           <p className="text-lg font-bold text-foreground">
             {LIVENESS_PROMPTS[Math.min(promptIndex, LIVENESS_PROMPTS.length - 1)]}
           </p>
@@ -549,7 +594,7 @@ export default function ProviderVerificationPage() {
       )}
 
       {step === 'review' && (
-        <div className="rounded-3xl border border-border bg-card p-6 space-y-4 max-w-2xl">
+        <div className="rounded-2xl border border-border bg-card p-6 space-y-4 max-w-2xl">
           <p className="text-sm text-muted-foreground">
             Review your submission. An admin will check your Ghana Card, selfie, and liveness frames.
           </p>
@@ -579,7 +624,7 @@ export default function ProviderVerificationPage() {
       )}
 
       {step === 'status' && (
-        <div className="rounded-3xl border border-border bg-card p-6 space-y-4 max-w-2xl">
+        <div className="rounded-2xl border border-border bg-card p-6 space-y-4 max-w-2xl">
           <p className="text-lg font-bold text-foreground">
             {kyc?.status === 'verified'
               ? 'Verified'
