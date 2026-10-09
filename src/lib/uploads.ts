@@ -1,4 +1,4 @@
-import { mkdir, unlink, writeFile } from 'fs/promises';
+import { mkdir, stat, unlink, writeFile } from 'fs/promises';
 import path from 'path';
 import { randomUUID } from 'crypto';
 
@@ -13,6 +13,34 @@ const AUDIO_ALLOWED = new Set([
   'video/webm',
 ]);
 const MAX_BYTES = 8 * 1024 * 1024;
+
+const CONTENT_TYPES: Record<string, string> = {
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  png: 'image/png',
+  webp: 'image/webp',
+  pdf: 'application/pdf',
+  webm: 'audio/webm',
+  mp3: 'audio/mpeg',
+  ogg: 'audio/ogg',
+  m4a: 'audio/mp4',
+  wav: 'audio/wav',
+};
+
+/**
+ * Uploads live outside the Next.js build (`next start` does not serve files added to
+ * `public/` after the build), so they survive rebuilds and redeploys. Point UPLOAD_DIR
+ * at a persistent volume in production.
+ */
+export function uploadRoot(): string {
+  const configured = process.env.UPLOAD_DIR?.trim();
+  return configured ? path.resolve(configured) : path.join(process.cwd(), 'storage', 'uploads');
+}
+
+/** Files written before UPLOAD_DIR existed. */
+function legacyRoot(): string {
+  return path.join(process.cwd(), 'public', 'uploads');
+}
 
 function mimeBase(type: string): string {
   return type.split(';')[0].trim().toLowerCase();
@@ -29,6 +57,34 @@ function extensionFor(type: string): string {
   if (base === 'audio/mp4') return 'm4a';
   if (base === 'audio/wav') return 'wav';
   return 'jpg';
+}
+
+export function contentTypeFor(filename: string): string {
+  const ext = path.extname(filename).slice(1).toLowerCase();
+  return CONTENT_TYPES[ext] || 'application/octet-stream';
+}
+
+function safeJoin(root: string, relative: string): string | null {
+  const absolute = path.resolve(root, relative);
+  return absolute.startsWith(root + path.sep) ? absolute : null;
+}
+
+/** Resolve `/uploads/<folder>/<file>` (or `<folder>/<file>`) to an existing file on disk. */
+export async function resolveUploadFile(publicPath: string): Promise<string | null> {
+  const relative = publicPath.replace(/^\/?uploads\//, '');
+  if (!relative || relative.includes('\0')) return null;
+
+  for (const root of [uploadRoot(), legacyRoot()]) {
+    const absolute = safeJoin(root, relative);
+    if (!absolute) return null;
+    try {
+      const info = await stat(absolute);
+      if (info.isFile()) return absolute;
+    } catch {
+      // Not in this root.
+    }
+  }
+  return null;
 }
 
 export async function saveUpload(
@@ -54,7 +110,7 @@ export async function saveUpload(
     throw new Error('File must be 8MB or smaller.');
   }
 
-  const dir = path.join(process.cwd(), 'public', 'uploads', folder);
+  const dir = path.join(uploadRoot(), folder);
   await mkdir(dir, { recursive: true });
 
   const filename = `${randomUUID()}.${extensionFor(file.type)}`;
@@ -67,7 +123,8 @@ export async function saveUpload(
 /** Delete a file previously saved under /uploads/...; ignores missing files. */
 export async function deleteUpload(publicPath: string | null | undefined): Promise<void> {
   if (!publicPath?.startsWith('/uploads/')) return;
-  const absolute = path.join(process.cwd(), 'public', publicPath);
+  const absolute = await resolveUploadFile(publicPath);
+  if (!absolute) return;
   try {
     await unlink(absolute);
   } catch {

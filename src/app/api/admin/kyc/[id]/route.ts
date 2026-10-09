@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireSession } from '@/lib/auth/require-session';
 import { query, queryOne, withTransaction } from '@/lib/db';
+import { kycDecisionNotification, notifyUser } from '@/lib/notify';
 import type { KycVerification } from '@/types/db';
 
 /** Admin approve/reject a KYC submission. */
@@ -68,6 +69,8 @@ export async function PATCH(
 
     return row;
   });
+
+  await notifyUser(kyc.userId, kycDecisionNotification(body.status, updated?.failureReason));
 
   return NextResponse.json({ kyc: updated });
 }

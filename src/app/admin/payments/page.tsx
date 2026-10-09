@@ -11,6 +11,7 @@ import {
   formatGhs,
 } from '@/components/admin/AdminUI';
 import { ConfirmModal, IconActionButton } from '@/components/admin/AdminModal';
+import Pagination, { usePagination } from '@/components/ui/Pagination';
 
 type Payment = {
   id: string;
@@ -91,6 +92,7 @@ export default function AdminPaymentsPage() {
 
   const visible =
     filter === 'pending' ? payments.filter((p) => p.status === 'pending') : payments;
+  const pager = usePagination(visible, { resetKey: filter });
   const pendingCount = payments.filter((p) => p.status === 'pending').length;
   const confirmedCount = payments.filter((p) => p.status === 'confirmed').length;
   const confirmedAmount = useMemo(
@@ -176,7 +178,7 @@ export default function AdminPaymentsPage() {
                 </tr>
               </thead>
               <tbody>
-                {visible.map((p) => (
+                {pager.pageItems.map((p) => (
                   <tr key={p.id} className="border-b border-border last:border-0 hover:bg-muted/20">
                     <td className="px-4 py-3.5">
                       <p className="font-semibold text-foreground text-sm">{p.user.name}</p>
@@ -240,6 +242,7 @@ export default function AdminPaymentsPage() {
               </tbody>
             </table>
           </div>
+          <Pagination {...pager.props} label="payments" />
         </div>
       )}
 

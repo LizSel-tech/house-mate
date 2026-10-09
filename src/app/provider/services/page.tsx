@@ -5,6 +5,7 @@ import Icon from '@/components/ui/AppIcon';
 import { Button } from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
 import { ConfirmModal, IconActionButton } from '@/components/admin/AdminModal';
+import Pagination, { usePagination } from '@/components/ui/Pagination';
 
 type Service = {
   id: string;
@@ -64,6 +65,7 @@ export default function ProviderServicesPage() {
     if (filter === 'inactive') return services.filter((s) => !s.isActive);
     return services;
   }, [services, filter]);
+  const pager = usePagination(visible, { resetKey: filter });
 
   const openCreate = () => {
     setEditingId(null);
@@ -354,7 +356,7 @@ export default function ProviderServicesPage() {
                 </tr>
               </thead>
               <tbody>
-                {visible.map((service) => (
+                {pager.pageItems.map((service) => (
                   <tr
                     key={service.id}
                     className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors"
@@ -427,9 +429,7 @@ export default function ProviderServicesPage() {
               </tbody>
             </table>
           </div>
-          <div className="px-5 py-3 border-t border-border bg-muted/20 text-xs text-muted-foreground">
-            Showing {visible.length} of {services.length} services
-          </div>
+          <Pagination {...pager.props} label="services" />
         </div>
       )}
 

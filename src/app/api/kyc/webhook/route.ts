@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { mapSmileStatusToKyc, verifySmileWebhookSignature } from '@/lib/kyc/smile-identity';
 import { query, queryOne, withTransaction } from '@/lib/db';
+import { kycDecisionNotification, notifyUser } from '@/lib/notify';
 import type { KycVerification } from '@/types/db';
 
 /**
@@ -117,6 +118,14 @@ export async function POST(request: Request) {
       }
     }
   });
+
+  // Providers retry webhooks; only notify on an actual status change.
+  if (kyc.status !== status && (mapped === 'verified' || mapped === 'rejected' || mapped === 'error')) {
+    await notifyUser(
+      kyc.userId,
+      kycDecisionNotification(mapped === 'verified' ? 'approved' : 'rejected', reason),
+    );
+  }
 
   return NextResponse.json({ ok: true });
 }

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Icon from '@/components/ui/AppIcon';
 import { Button } from '@/components/ui/Button';
+import { useImageError } from '@/components/ui/useImageError';
 
 function initials(name?: string | null) {
   if (!name) return '?';
@@ -37,6 +38,8 @@ export default function ProfileMasthead({
   const [avatar, setAvatar] = useState(avatarUrl || null);
   const [busy, setBusy] = useState<'cover' | 'avatar' | null>(null);
   const [error, setError] = useState('');
+  const [showCover, onCoverError] = useImageError(cover);
+  const [showAvatar, onAvatarError] = useImageError(avatar);
 
   useEffect(() => setCover(coverUrl || null), [coverUrl]);
   useEffect(() => setAvatar(avatarUrl || null), [avatarUrl]);
@@ -126,9 +129,14 @@ export default function ProfileMasthead({
   return (
     <div className="rounded-2xl border border-border bg-card overflow-hidden">
       <div className="relative h-28 sm:h-36 overflow-hidden bg-secondary group">
-        {cover ? (
+        {showCover ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={cover} alt="" className="absolute inset-0 h-full w-full object-cover" />
+          <img
+            src={cover!}
+            alt=""
+            onError={onCoverError}
+            className="absolute inset-0 h-full w-full object-cover"
+          />
         ) : (
           <div
             className="absolute inset-0"
@@ -167,11 +175,12 @@ export default function ProfileMasthead({
       <div className="relative px-5 sm:px-6 pb-4">
         <div className="flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-4 -mt-10 sm:-mt-14">
           <div className="relative size-24 sm:size-32 shrink-0 self-start">
-            {avatar ? (
+            {showAvatar ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={avatar}
-                alt={name || 'Profile photo'}
+                src={avatar!}
+                alt=""
+                onError={onAvatarError}
                 className="h-full w-full rounded-full object-cover border-4 border-card shadow-md"
               />
             ) : (

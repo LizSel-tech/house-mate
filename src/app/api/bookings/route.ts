@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireSession } from '@/lib/auth/require-session';
 import { queryData, queryOne } from '@/lib/db';
 import { BOOKING_DATA_SQL } from '@/lib/db/bookings';
+import { notifyArtisan } from '@/lib/notify';
 import type { ArtisanProfile, Service } from '@/types/db';
 
 export async function GET() {
@@ -96,6 +97,13 @@ export async function POST(request: Request) {
     `${BOOKING_DATA_SQL} WHERE b.id = $1`,
     [created!.id],
   );
+
+  await notifyArtisan(artisan.id, {
+    type: 'booking_requested',
+    title: 'New booking request',
+    body: `${user.name} requested "${service.title}" for GHS ${agreedPrice.toFixed(2)}.`,
+    href: '/provider/jobs',
+  });
 
   return NextResponse.json({ booking: booking[0] }, { status: 201 });
 }

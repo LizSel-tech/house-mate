@@ -6,6 +6,7 @@ const navItems: PortalNavItem[] = [
   { href: '/user', label: 'Home page', icon: 'HomeIcon' },
   { href: '/user/search', label: 'Find artisans', icon: 'MagnifyingGlassIcon' },
   { href: '/user/bookings', label: 'My bookings', icon: 'CalendarDaysIcon' },
+  { href: '/user/notifications', label: 'Notifications', icon: 'BellAlertIcon' },
   { href: '/user/settings', label: 'Settings', icon: 'Cog6ToothIcon' },
   { href: '/user/profile', label: 'Profile', icon: 'UserCircleIcon' },
 ];

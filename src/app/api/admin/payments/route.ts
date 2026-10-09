@@ -5,6 +5,7 @@ import {
   notifyAdmin,
 } from '@/lib/admin-notify';
 import { issueOtpToUser } from '@/lib/auth/otp';
+import { notifyUser } from '@/lib/notify';
 import { query, queryData, queryDataOne, queryOne, withTransaction } from '@/lib/db';
 import type { PaymentMethod, SignupPayment, User } from '@/types/db';
 
@@ -87,6 +88,12 @@ export async function PATCH(request: Request) {
       );
     });
 
+    await notifyUser(payment.userId, {
+      type: 'signup_payment_rejected',
+      title: 'Signup payment rejected',
+      body: `${body.reason?.trim() || 'Your signup payment could not be confirmed.'} Please resubmit your payment.`,
+    });
+
     await notifyAdmin({
       type: 'signup_payment_rejected',
       title: 'Signup payment rejected',
@@ -127,6 +134,16 @@ export async function PATCH(request: Request) {
   } catch (err) {
     otpError = err instanceof Error ? err.message : 'Unable to email OTP.';
   }
+
+  await notifyUser(payment.userId, {
+    type: 'account_activated',
+    title: 'Welcome to Fixora',
+    body:
+      payment.user.role === 'artisan'
+        ? 'Your signup payment was confirmed. Complete identity verification to start receiving bookings.'
+        : 'Your signup payment was confirmed. Find a verified artisan and book your first job.',
+    href: payment.user.role === 'artisan' ? '/provider/verification' : '/user/search',
+  });
 
   await notifyAdmin({
     type: 'signup_payment_confirmed',

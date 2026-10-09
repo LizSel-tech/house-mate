@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireSession } from '@/lib/auth/require-session';
 import { query, queryDataOne } from '@/lib/db';
 import { BOOKING_DATA_SQL } from '@/lib/db/bookings';
+import { getBookingParties, notifyUser } from '@/lib/notify';
 import type { ArtisanProfile, Booking, BookingStatus, Payment } from '@/types/db';
 
 const ARTISAN_TRANSITIONS: Partial<Record<BookingStatus, BookingStatus[]>> = {
@@ -83,5 +84,64 @@ export async function PATCH(
   await query(`UPDATE bookings SET status = $1 WHERE id = $2`, [body.status, id]);
   const updated = await queryDataOne(`${BOOKING_DATA_SQL} WHERE b.id = $1`, [id]);
 
+  if (body.status !== booking.status) {
+    await notifyStatusChange(id, booking.status, body.status, user.role);
+  }
+
   return NextResponse.json({ booking: updated });
+}
+
+async function notifyStatusChange(
+  bookingId: string,
+  from: BookingStatus,
+  to: BookingStatus,
+  actorRole: string,
+) {
+  const parties = await getBookingParties(bookingId);
+  if (!parties) return;
+  const job = `"${parties.title}"`;
+
+  if (to === 'accepted') {
+    await notifyUser(parties.customerId, {
+      type: 'booking_accepted',
+      title: 'Booking accepted',
+      body: `${parties.artisanName} accepted ${job}. Pay into escrow so work can start.`,
+      href: '/user/bookings',
+    });
+  } else if (to === 'completed') {
+    await notifyUser(parties.customerId, {
+      type: 'booking_work_done',
+      title: 'Work marked done',
+      body: `${parties.artisanName} marked ${job} as done. Confirm completion to release payment.`,
+      href: '/user/bookings',
+    });
+  } else if (to === 'cancelled') {
+    if (actorRole === 'artisan') {
+      await notifyUser(parties.customerId, {
+        type: 'booking_declined',
+        title: from === 'requested' ? 'Booking declined' : 'Booking cancelled',
+        body: `${parties.artisanName} ${from === 'requested' ? 'declined' : 'cancelled'} ${job}.`,
+        href: '/user/bookings',
+      });
+    } else if (actorRole === 'user') {
+      await notifyUser(parties.artisanUserId, {
+        type: 'booking_cancelled',
+        title: 'Booking cancelled',
+        body: `${parties.customerName} cancelled ${job}.`,
+        href: '/provider/jobs',
+      });
+    } else {
+      for (const [userId, href] of [
+        [parties.customerId, '/user/bookings'],
+        [parties.artisanUserId, '/provider/jobs'],
+      ] as const) {
+        await notifyUser(userId, {
+          type: 'booking_cancelled',
+          title: 'Booking cancelled',
+          body: `Fixora cancelled ${job}.`,
+          href,
+        });
+      }
+    }
+  }
 }

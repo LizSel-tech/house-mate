@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireSession } from '@/lib/auth/require-session';
 import { query, queryDataOne, queryOne, withTransaction } from '@/lib/db';
+import { notifyArtisan } from '@/lib/notify';
 import type { Booking, Payment, Review } from '@/types/db';
 
 export async function POST(
@@ -66,6 +67,13 @@ export async function POST(
     );
 
     return created;
+  });
+
+  await notifyArtisan(booking.artisanId, {
+    type: 'review_received',
+    title: `New ${rating}★ review`,
+    body: `${user.name} left a ${rating}-star review${body.comment?.trim() ? `: "${body.comment.trim().slice(0, 120)}"` : '.'}`,
+    href: '/provider',
   });
 
   return NextResponse.json({ review }, { status: 201 });

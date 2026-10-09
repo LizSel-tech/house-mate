@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import Icon from '@/components/ui/AppIcon';
 import { Button } from '@/components/ui/Button';
+import Pagination, { usePagination } from '@/components/ui/Pagination';
 
 type PayoutRow = {
   id: string;
@@ -74,6 +75,7 @@ export default function ProviderEarningsPage() {
       }),
     [rows],
   );
+  const pager = usePagination(sorted);
 
   return (
     <div className="space-y-6">
@@ -153,7 +155,8 @@ export default function ProviderEarningsPage() {
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+            <div className="overflow-x-auto">
             <table className="w-full min-w-[560px] text-left">
               <thead>
                 <tr className="border-b border-border bg-muted/40">
@@ -168,7 +171,7 @@ export default function ProviderEarningsPage() {
                 </tr>
               </thead>
               <tbody>
-                {sorted.map((row) => (
+                {pager.pageItems.map((row) => (
                   <tr
                     key={row.id}
                     className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors"
@@ -201,7 +204,9 @@ export default function ProviderEarningsPage() {
                 ))}
               </tbody>
             </table>
-          </div>
+            </div>
+            <Pagination {...pager.props} label="payouts" />
+          </>
         )}
       </div>
 

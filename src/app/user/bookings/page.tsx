@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import Icon from '@/components/ui/AppIcon';
 import { Button } from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
+import Pagination, { usePagination } from '@/components/ui/Pagination';
 
 type Booking = {
   id: string;
@@ -32,6 +33,7 @@ export default function UserBookingsPage() {
   const [rating, setRating] = useState<Record<string, string>>({});
   const [comment, setComment] = useState<Record<string, string>>({});
   const [busyId, setBusyId] = useState('');
+  const pager = usePagination(bookings);
 
   const load = async () => {
     const res = await fetch('/api/bookings');
@@ -139,7 +141,7 @@ export default function UserBookingsPage() {
         </div>
       ) : (
         <div className="space-y-4">
-          {bookings.map((booking) => (
+          {pager.pageItems.map((booking) => (
             <div
               key={booking.id}
               className="rounded-3xl border border-border bg-card p-5 sm:p-6 space-y-4 hover:border-primary/30 transition-colors"
@@ -240,6 +242,7 @@ export default function UserBookingsPage() {
               )}
             </div>
           ))}
+          <Pagination {...pager.props} label="bookings" className="rounded-2xl border border-border" />
         </div>
       )}
     </div>

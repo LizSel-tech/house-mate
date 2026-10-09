@@ -6,6 +6,7 @@ import Icon from '@/components/ui/AppIcon';
 import { Button } from '@/components/ui/Button';
 import EmojiPicker, { EMOJI_FONT } from '@/components/chat/EmojiPicker';
 import VoiceNote from '@/components/chat/VoiceNote';
+import { useImageError } from '@/components/ui/useImageError';
 
 type SessionUser = {
   id: string;
@@ -107,10 +108,16 @@ function Avatar({
   size?: 'sm' | 'md';
 }) {
   const cls = size === 'sm' ? 'w-8 h-8 text-[10px]' : 'w-11 h-11 text-xs';
-  if (src) {
+  const [showImage, onImageError] = useImageError(src);
+  if (showImage) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
-      <img src={src} alt="" className={`${cls} rounded-full object-cover shrink-0`} />
+      <img
+        src={src!}
+        alt=""
+        onError={onImageError}
+        className={`${cls} rounded-full object-cover shrink-0`}
+      />
     );
   }
   return (

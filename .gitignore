@@ -17,6 +17,7 @@ out
 .env.local
 .env*.local
 public/uploads
+storage/uploads
 tsconfig.tsbuildinfo
 
 # Editor directories and files

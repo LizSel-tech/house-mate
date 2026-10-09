@@ -6,6 +6,8 @@ import { useEffect, useState } from 'react';
 import AppLogo from '@/components/ui/AppLogo';
 import Icon from '@/components/ui/AppIcon';
 import { Button } from '@/components/ui/Button';
+import NotificationBell from '@/components/notifications/NotificationBell';
+import { useImageError } from '@/components/ui/useImageError';
 import type { SessionUser } from '@/types/auth';
 import { ROLE_LABELS } from '@/lib/auth/constants';
 
@@ -33,6 +35,7 @@ export default function PortalShell({
   const [menuOpen, setMenuOpen] = useState(false);
   const [logoutOpen, setLogoutOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [showAvatar, onAvatarError] = useImageError(user.avatarUrl);
 
   useEffect(() => {
     if (!logoutOpen) return;
@@ -74,6 +77,8 @@ export default function PortalShell({
           ? '/admin/chat'
           : null;
   const chatActive = Boolean(chatHref && pathname.startsWith(chatHref));
+  const notificationsHref =
+    user.role === 'user' ? '/user/notifications' : user.role === 'artisan' ? '/provider/notifications' : null;
 
   const ChatButton = ({ tone = 'light' }: { tone?: 'light' | 'dark' }) => {
     if (!chatHref) return null;
@@ -135,11 +140,12 @@ export default function PortalShell({
 
         <div className="px-5 py-5 border-t border-white/10">
           <div className="flex items-center gap-3 mb-3">
-            {user.avatarUrl ? (
+            {showAvatar ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={user.avatarUrl}
-                alt={user.name}
+                src={user.avatarUrl!}
+                alt=""
+                onError={onAvatarError}
                 className="w-9 h-9 rounded-xl object-cover border border-white/10"
               />
             ) : (
@@ -175,6 +181,7 @@ export default function PortalShell({
           <span className="font-bold text-sm truncate">{title}</span>
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          {notificationsHref && <NotificationBell href={notificationsHref} tone="dark" />}
           {!chatActive && <ChatButton tone="dark" />}
           <button
             type="button"
@@ -226,16 +233,16 @@ export default function PortalShell({
       <main className="flex-1 min-w-0 min-h-0 flex flex-col bg-[radial-gradient(ellipse_at_top,_rgba(217,119,6,0.06),_transparent_55%)]">
         {chatHref && user.role !== 'admin' && (
           <header className="hidden md:flex shrink-0 h-16 items-center px-5 sm:px-8 border-b border-border/80 bg-background/85 backdrop-blur-md">
-            {chatActive ? (
+            {chatActive && (
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Messages</p>
                 <p className="text-sm font-bold text-foreground">Chat</p>
               </div>
-            ) : (
-              <div className="ml-auto">
-                <ChatButton />
-              </div>
             )}
+            <div className="ml-auto flex items-center gap-2">
+              {notificationsHref && <NotificationBell href={notificationsHref} />}
+              {!chatActive && <ChatButton />}
+            </div>
           </header>
         )}
         <div

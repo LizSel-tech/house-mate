@@ -8,6 +8,7 @@ import {
   bookingStatusTone,
   formatGhs,
 } from '@/components/admin/AdminUI';
+import Pagination, { usePagination } from '@/components/ui/Pagination';
 
 type Booking = {
   id: string;
@@ -50,6 +51,7 @@ export default function AdminBookingsPage() {
     if (filter === 'disputed') return bookings.filter((b) => b.status === 'disputed');
     return bookings;
   }, [bookings, filter]);
+  const pager = usePagination(visible, { resetKey: filter });
 
   const chips: { id: StatusFilter; label: string; count: number }[] = [
     { id: 'all', label: 'All', count: bookings.length },
@@ -113,7 +115,7 @@ export default function AdminBookingsPage() {
                 </tr>
               </thead>
               <tbody>
-                {visible.map((booking) => (
+                {pager.pageItems.map((booking) => (
                   <tr key={booking.id} className="border-b border-border last:border-0 hover:bg-muted/30">
                     <td className="px-5 py-4 font-semibold text-foreground text-sm">
                       {booking.service?.title || 'Custom job'}
@@ -138,9 +140,7 @@ export default function AdminBookingsPage() {
               </tbody>
             </table>
           </div>
-          <div className="px-5 py-3 border-t border-border bg-muted/20 text-xs text-muted-foreground">
-            Showing {visible.length} of {bookings.length} bookings
-          </div>
+          <Pagination {...pager.props} label="bookings" />
         </div>
       )}
     </div>

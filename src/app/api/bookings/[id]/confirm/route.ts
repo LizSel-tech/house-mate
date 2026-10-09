@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireSession } from '@/lib/auth/require-session';
 import { query, queryDataOne, withTransaction } from '@/lib/db';
+import { getBookingParties, notifyUser } from '@/lib/notify';
 import type { ArtisanProfile, Booking, Payment } from '@/types/db';
 
 /** User confirms completion → release escrow to artisan (minus commission) */
@@ -59,6 +60,14 @@ export async function POST(
   });
 
   const payout = Number(result.payment.amount) - Number(result.payment.commission);
+
+  const parties = await getBookingParties(id);
+  await notifyUser(booking.artisan.userId, {
+    type: 'payout_released',
+    title: 'Payment released',
+    body: `${parties?.customerName || 'The customer'} confirmed "${parties?.title || 'your job'}". GHS ${payout.toFixed(2)} has been released to you.`,
+    href: '/provider/earnings',
+  });
 
   return NextResponse.json({
     ...result,

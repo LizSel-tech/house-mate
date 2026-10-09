@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireSession } from '@/lib/auth/require-session';
 import { query, queryOne } from '@/lib/db';
+import { notifyUser } from '@/lib/notify';
 import { saveUpload } from '@/lib/uploads';
 import type { ArtisanProfile } from '@/types/db';
 
@@ -118,6 +119,26 @@ export async function POST(
   );
 
   await query(`UPDATE conversations SET updated_at = now() WHERE id = $1`, [id]);
+
+  const recipient = await queryOne<{ id: string }>(
+    user.role === 'user'
+      ? `SELECT user_id AS id FROM artisan_profiles WHERE id = $1`
+      : `SELECT $1::uuid AS id`,
+    [user.role === 'user' ? convo.artisanId : convo.userId],
+  );
+  const preview =
+    type === 'audio' ? 'sent a voice note' : type === 'file' ? 'sent a file' : `: "${body.slice(0, 100)}"`;
+  // One unread alert per conversation, so a burst of messages doesn't flood the inbox.
+  await notifyUser(
+    recipient?.id,
+    {
+      type: 'chat_message',
+      title: `New message from ${user.name}`,
+      body: type === 'text' ? `${user.name}${preview}` : `${user.name} ${preview}.`,
+      href: `${user.role === 'user' ? '/provider/chat' : '/user/chat'}?c=${id}`,
+    },
+    { skipIfUnread: true },
+  );
 
   return NextResponse.json({ message }, { status: 201 });
 }

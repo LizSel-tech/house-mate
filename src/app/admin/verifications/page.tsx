@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/Button';
+import Pagination, { usePagination } from '@/components/ui/Pagination';
 import {
   AdminPageHeader,
   EmptyState,
@@ -152,8 +153,11 @@ export default function AdminVerificationsPage() {
     }
   };
 
-  const pendingKyc = kycItems.filter((k) => k.status === 'pending');
-  const otherKyc = kycItems.filter((k) => k.status !== 'pending');
+  const pendingKyc = useMemo(() => kycItems.filter((k) => k.status === 'pending'), [kycItems]);
+  const otherKyc = useMemo(() => kycItems.filter((k) => k.status !== 'pending'), [kycItems]);
+  const pendingPager = usePagination(pendingKyc, { pageSize: 5 });
+  const otherPager = usePagination(otherKyc, { pageSize: 5 });
+  const legacyPager = usePagination(items, { pageSize: 5 });
 
   return (
     <div className="space-y-8">
@@ -185,7 +189,7 @@ export default function AdminVerificationsPage() {
           <EmptyState icon="ShieldCheckIcon" title="No pending KYC submissions" />
         ) : (
           <div className="space-y-3">
-            {pendingKyc.map((item) => (
+            {pendingPager.pageItems.map((item) => (
               <KycCard
                 key={item.id}
                 item={item}
@@ -194,6 +198,11 @@ export default function AdminVerificationsPage() {
                 onReject={() => decideKyc(item.id, 'rejected')}
               />
             ))}
+            <Pagination
+              {...pendingPager.props}
+              label="submissions"
+              className="rounded-2xl border border-border"
+            />
           </div>
         )}
       </section>
@@ -202,9 +211,14 @@ export default function AdminVerificationsPage() {
         <section className="space-y-3">
           <h2 className="text-lg font-bold text-foreground">Recent KYC decisions</h2>
           <div className="space-y-3">
-            {otherKyc.map((item) => (
+            {otherPager.pageItems.map((item) => (
               <KycCard key={item.id} item={item} />
             ))}
+            <Pagination
+              {...otherPager.props}
+              label="decisions"
+              className="rounded-2xl border border-border"
+            />
           </div>
         </section>
       )}
@@ -215,7 +229,7 @@ export default function AdminVerificationsPage() {
           <EmptyState icon="DocumentTextIcon" title="No pending legacy document submissions" />
         ) : (
           <div className="space-y-3">
-            {items.map((item) => (
+            {legacyPager.pageItems.map((item) => (
               <div key={item.id} className="rounded-2xl border border-border bg-card p-5 space-y-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
@@ -259,6 +273,11 @@ export default function AdminVerificationsPage() {
                 </div>
               </div>
             ))}
+            <Pagination
+              {...legacyPager.props}
+              label="submissions"
+              className="rounded-2xl border border-border"
+            />
           </div>
         )}
       </section>

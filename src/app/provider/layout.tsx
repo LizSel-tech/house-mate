@@ -8,6 +8,7 @@ const navItems: PortalNavItem[] = [
   { href: '/provider/services', label: 'Services', icon: 'WrenchScrewdriverIcon' },
   { href: '/provider/verification', label: 'Verification', icon: 'ShieldCheckIcon' },
   { href: '/provider/earnings', label: 'Earnings', icon: 'BanknotesIcon' },
+  { href: '/provider/notifications', label: 'Notifications', icon: 'BellAlertIcon' },
   { href: '/provider/settings', label: 'Settings', icon: 'Cog6ToothIcon' },
   { href: '/provider/profile', label: 'Profile', icon: 'UserCircleIcon' },
 ];

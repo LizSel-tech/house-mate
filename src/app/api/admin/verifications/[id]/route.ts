@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireSession } from '@/lib/auth/require-session';
 import { query, queryOne, withTransaction } from '@/lib/db';
+import { kycDecisionNotification, notifyArtisan } from '@/lib/notify';
 import type { VerificationDocument } from '@/types/db';
 
 export async function PATCH(
@@ -42,6 +43,8 @@ export async function PATCH(
 
     return document;
   });
+
+  await notifyArtisan(doc.artisanId, kycDecisionNotification(body.status));
 
   return NextResponse.json({ document: updated });
 }

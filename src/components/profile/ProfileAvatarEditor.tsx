@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Icon from '@/components/ui/AppIcon';
 import { Button } from '@/components/ui/Button';
+import { useImageError } from '@/components/ui/useImageError';
 
 function initials(name?: string | null) {
   if (!name) return '?';
@@ -27,6 +28,7 @@ export default function ProfileAvatarEditor({
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState(avatarUrl || null);
+  const [showPreview, onPreviewError] = useImageError(preview);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -84,11 +86,12 @@ export default function ProfileAvatarEditor({
     <div className="space-y-3">
       <div className="flex items-center gap-4">
         <div className="relative shrink-0">
-          {preview ? (
+          {showPreview ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={preview}
-              alt={name || 'Profile photo'}
+              src={preview!}
+              alt=""
+              onError={onPreviewError}
               className="w-16 h-16 rounded-2xl object-cover border border-border"
             />
           ) : (

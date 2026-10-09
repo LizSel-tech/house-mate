@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Icon from '@/components/ui/AppIcon';
+import Pagination, { usePagination } from '@/components/ui/Pagination';
 import {
   AdminPageHeader,
   StatusBadge,
@@ -108,6 +109,7 @@ export default function AdminUsersPage() {
         (u.location || '').toLowerCase().includes(q),
     );
   }, [users, query]);
+  const pager = usePagination(filtered, { resetKey: `${role}|${query}` });
 
   return (
     <div className="space-y-6">
@@ -187,7 +189,7 @@ export default function AdminUsersPage() {
                   </td>
                 </tr>
               ) : (
-                filtered.map((u) => (
+                pager.pageItems.map((u) => (
                   <tr
                     key={u.id}
                     className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors"
@@ -250,10 +252,7 @@ export default function AdminUsersPage() {
             </tbody>
           </table>
         </div>
-        <div className="px-5 py-3 border-t border-border bg-muted/20 text-xs text-muted-foreground">
-          Showing {filtered.length} of {users.length} loaded
-          {role !== 'all' ? ` · filtered by ${role === 'user' ? 'customers' : `${role}s`}` : ''}
-        </div>
+        {!loading && <Pagination {...pager.props} label="users" />}
       </div>
     </div>
   );

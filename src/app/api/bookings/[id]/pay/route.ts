@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireSession } from '@/lib/auth/require-session';
 import { query, queryDataOne, queryOne } from '@/lib/db';
+import { getBookingParties, notifyUser } from '@/lib/notify';
 import type { Booking, Payment, PlatformSetting } from '@/types/db';
 
 async function getCommissionRate() {
@@ -56,6 +57,16 @@ export async function POST(
   );
 
   await query(`UPDATE bookings SET status = 'in_progress' WHERE id = $1`, [id]);
+
+  const parties = await getBookingParties(id);
+  if (parties) {
+    await notifyUser(parties.artisanUserId, {
+      type: 'escrow_paid',
+      title: 'Escrow paid — start work',
+      body: `${parties.customerName} paid GHS ${amount.toFixed(2)} into escrow for "${parties.title}". You can begin the job.`,
+      href: '/provider/jobs',
+    });
+  }
 
   return NextResponse.json({
     payment,

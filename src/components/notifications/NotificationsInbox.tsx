@@ -4,15 +4,11 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import Icon from '@/components/ui/AppIcon';
 import { Button } from '@/components/ui/Button';
-import {
-  AdminPageHeader,
-  EmptyState,
-  KpiCard,
-  StatusBadge,
-  formatDateTime,
-} from '@/components/admin/AdminUI';
-import { AdminModal, IconActionButton } from '@/components/admin/AdminModal';
 import Pagination, { usePagination } from '@/components/ui/Pagination';
+import { AdminPageHeader, EmptyState, KpiCard, StatusBadge, formatDateTime } from '@/components/admin/AdminUI';
+import { AdminModal, IconActionButton } from '@/components/admin/AdminModal';
+
+export const NOTIFICATIONS_CHANGED = 'fixora:notifications-changed';
 
 type Notification = {
   id: string;
@@ -27,9 +23,12 @@ type Notification = {
 type Filter = 'all' | 'unread';
 
 function typeIcon(type: string) {
-  if (type.includes('payment')) return 'BanknotesIcon';
-  if (type.includes('kyc') || type.includes('verif')) return 'ShieldCheckIcon';
-  if (type.includes('signup') || type.includes('registration')) return 'UserPlusIcon';
+  if (type.startsWith('chat')) return 'ChatBubbleLeftRightIcon';
+  if (type.includes('payout') || type.includes('escrow') || type.includes('payment')) return 'BanknotesIcon';
+  if (type.includes('verification')) return 'ShieldCheckIcon';
+  if (type.includes('review')) return 'StarIcon';
+  if (type.includes('account')) return 'SparklesIcon';
+  if (type.startsWith('booking')) return 'CalendarDaysIcon';
   return 'BellAlertIcon';
 }
 
@@ -37,19 +36,28 @@ function typeLabel(type: string) {
   return type.replace(/_/g, ' ');
 }
 
-export default function AdminNotificationsPage() {
+function announceChange() {
+  window.dispatchEvent(new Event(NOTIFICATIONS_CHANGED));
+}
+
+export default function NotificationsInbox({ description }: { description: string }) {
   const [items, setItems] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
   const [selected, setSelected] = useState<Notification | null>(null);
 
   const load = async () => {
-    const res = await fetch('/api/admin/notifications');
-    const data = await res.json();
-    if (res.ok) {
-      setItems(data.notifications || []);
-      setUnreadCount(data.unreadCount || 0);
+    try {
+      const res = await fetch('/api/notifications');
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setItems(data.notifications || []);
+        setUnreadCount(data.unreadCount || 0);
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -60,12 +68,13 @@ export default function AdminNotificationsPage() {
   const markAll = async () => {
     setBusy('all');
     try {
-      await fetch('/api/admin/notifications', {
+      await fetch('/api/notifications', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ markAllRead: true }),
       });
       await load();
+      announceChange();
     } finally {
       setBusy('');
     }
@@ -74,18 +83,16 @@ export default function AdminNotificationsPage() {
   const markOne = async (id: string) => {
     setBusy(id);
     try {
-      await fetch('/api/admin/notifications', {
+      await fetch('/api/notifications', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id }),
       });
-      setItems((prev) =>
-        prev.map((n) => (n.id === id && !n.readAt ? { ...n, readAt: new Date().toISOString() } : n)),
-      );
+      const now = new Date().toISOString();
+      setItems((prev) => prev.map((n) => (n.id === id && !n.readAt ? { ...n, readAt: now } : n)));
       setUnreadCount((c) => Math.max(0, c - 1));
-      setSelected((cur) =>
-        cur?.id === id && !cur.readAt ? { ...cur, readAt: new Date().toISOString() } : cur,
-      );
+      setSelected((cur) => (cur?.id === id && !cur.readAt ? { ...cur, readAt: now } : cur));
+      announceChange();
     } finally {
       setBusy('');
     }
@@ -93,9 +100,7 @@ export default function AdminNotificationsPage() {
 
   const openNotification = async (n: Notification) => {
     setSelected(n);
-    if (!n.readAt) {
-      await markOne(n.id);
-    }
+    if (!n.readAt) await markOne(n.id);
   };
 
   const visible = useMemo(
@@ -109,27 +114,24 @@ export default function AdminNotificationsPage() {
       <AdminPageHeader
         eyebrow="Inbox"
         title="Notifications"
-        description="Alerts for registrations, payments, and platform events."
+        description={description}
         actions={
-          <Button type="button" variant="outline" loading={busy === 'all'} onClick={markAll} className="!min-h-[40px] !rounded-xl">
+          <Button
+            type="button"
+            variant="outline"
+            loading={busy === 'all'}
+            disabled={unreadCount === 0}
+            onClick={markAll}
+            className="!min-h-[40px] !rounded-xl"
+          >
             Mark all read
           </Button>
         }
       />
 
       <div className="grid sm:grid-cols-2 gap-3">
-        <KpiCard
-          label="Unread"
-          value={String(unreadCount)}
-          hint="Needs attention"
-          icon="BellAlertIcon"
-        />
-        <KpiCard
-          label="Total alerts"
-          value={String(items.length)}
-          hint="Loaded in inbox"
-          icon="InboxIcon"
-        />
+        <KpiCard label="Unread" value={String(unreadCount)} hint="Needs attention" icon="BellAlertIcon" />
+        <KpiCard label="Total" value={String(items.length)} hint="In your inbox" icon="InboxIcon" />
       </div>
 
       <div className="flex gap-2">
@@ -152,11 +154,13 @@ export default function AdminNotificationsPage() {
         ))}
       </div>
 
-      {visible.length === 0 ? (
+      {loading ? (
+        <div className="h-48 rounded-2xl border border-border bg-card animate-pulse" />
+      ) : visible.length === 0 ? (
         <EmptyState
           icon="BellAlertIcon"
           title={filter === 'unread' ? 'No unread notifications' : 'No notifications yet'}
-          description="New registration and payment alerts will appear here."
+          description="Booking, payment, verification, and message updates will appear here."
         />
       ) : (
         <div className="rounded-2xl border border-border bg-card overflow-hidden">
@@ -247,15 +251,9 @@ export default function AdminNotificationsPage() {
               <StatusBadge tone="neutral">{typeLabel(selected.type)}</StatusBadge>
             </div>
             <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{selected.body}</p>
-            <dl className="grid grid-cols-2 gap-3 rounded-xl border border-border bg-muted/30 p-3 text-sm">
-              <div>
-                <dt className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Received</dt>
-                <dd className="mt-1 text-foreground">{formatDateTime(selected.createdAt)}</dd>
-              </div>
-              <div>
-                <dt className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Status</dt>
-                <dd className="mt-1 text-foreground">{selected.readAt ? 'Marked as read' : 'Unread'}</dd>
-              </div>
+            <dl className="rounded-xl border border-border bg-muted/30 p-3 text-sm">
+              <dt className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Received</dt>
+              <dd className="mt-1 text-foreground">{formatDateTime(selected.createdAt)}</dd>
             </dl>
           </div>
         )}

@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useState } from 'react';
 import Icon from '@/components/ui/AppIcon';
 import { Button } from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
+import Pagination, { usePagination } from '@/components/ui/Pagination';
 import {
   AdminPageHeader,
   Panel,
@@ -28,6 +29,7 @@ export default function AdminSettingsPage() {
   const [userSignupFee, setUserSignupFee] = useState('20');
   const [artisanSignupFee, setArtisanSignupFee] = useState('50');
   const [methods, setMethods] = useState<Method[]>([]);
+  const methodsPager = usePagination(methods, { pageSize: 5 });
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [savingFees, setSavingFees] = useState(false);
@@ -288,7 +290,7 @@ export default function AdminSettingsPage() {
                 </tr>
               </thead>
               <tbody>
-                {methods.map((m) => (
+                {methodsPager.pageItems.map((m) => (
                   <tr key={m.id} className="border-b border-border last:border-0">
                     <td className="px-3.5 py-3 font-semibold text-sm text-foreground">{m.name}</td>
                     <td className="px-3.5 py-3 text-xs text-muted-foreground max-w-[220px]">
@@ -333,6 +335,7 @@ export default function AdminSettingsPage() {
                 )}
               </tbody>
             </table>
+            <Pagination {...methodsPager.props} label="methods" />
           </div>
         </Panel>
       </div>

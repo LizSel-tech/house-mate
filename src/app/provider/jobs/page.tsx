@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Icon from '@/components/ui/AppIcon';
 import { Button } from '@/components/ui/Button';
+import Pagination, { usePagination } from '@/components/ui/Pagination';
 
 type Booking = {
   id: string;
@@ -64,6 +65,7 @@ export default function ProviderJobsPage() {
     if (filter === 'done') return bookings.filter((b) => ['completed', 'cancelled'].includes(b.status));
     return bookings;
   }, [bookings, filter]);
+  const pager = usePagination(filtered, { resetKey: filter });
 
   const counts = useMemo(
     () => ({
@@ -119,7 +121,7 @@ export default function ProviderJobsPage() {
         </div>
       ) : (
         <div className="space-y-4">
-          {filtered.map((booking) => (
+          {pager.pageItems.map((booking) => (
             <div key={booking.id} className="rounded-3xl border border-border bg-card p-5 sm:p-6 space-y-4 hover:border-primary/30 transition-colors">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -193,6 +195,7 @@ export default function ProviderJobsPage() {
               </div>
             </div>
           ))}
+          <Pagination {...pager.props} label="jobs" className="rounded-2xl border border-border" />
         </div>
       )}
     </div>
