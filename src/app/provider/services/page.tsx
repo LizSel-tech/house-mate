@@ -201,7 +201,7 @@ export default function ProviderServicesPage() {
       {panelOpen && (
         <form
           onSubmit={onSave}
-          className="rounded-2xl border border-border bg-card overflow-hidden"
+          className="rounded-2xl border border-border bg-card"
         >
           <div className="px-5 py-4 border-b border-border flex items-start justify-between gap-3">
             <div className="flex items-center gap-3">

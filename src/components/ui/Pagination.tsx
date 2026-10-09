@@ -3,11 +3,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import Icon from '@/components/ui/AppIcon';
 
-const PAGE_SIZES = [10, 25, 50];
-
 export function usePagination<T>(items: T[], options?: { pageSize?: number; resetKey?: unknown }) {
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(options?.pageSize ?? 10);
+  const pageSize = options?.pageSize ?? 10;
 
   const total = items.length;
   const pageCount = Math.max(1, Math.ceil(total / pageSize));
@@ -29,7 +27,6 @@ export function usePagination<T>(items: T[], options?: { pageSize?: number; rese
     page,
     setPage,
     pageSize,
-    setPageSize,
     pageCount,
     total,
     pageItems,
@@ -39,7 +36,6 @@ export function usePagination<T>(items: T[], options?: { pageSize?: number; rese
       pageSize,
       total,
       onPageChange: setPage,
-      onPageSizeChange: setPageSize,
     },
   };
 }
@@ -62,8 +58,7 @@ export default function Pagination({
   pageSize,
   total,
   onPageChange,
-  onPageSizeChange,
-  label = 'items',
+  label = 'results',
   className = '',
 }: {
   page: number;
@@ -71,7 +66,6 @@ export default function Pagination({
   pageSize: number;
   total: number;
   onPageChange: (page: number) => void;
-  onPageSizeChange?: (size: number) => void;
   label?: string;
   className?: string;
 }) {
@@ -80,47 +74,33 @@ export default function Pagination({
   const start = (page - 1) * pageSize + 1;
   const end = Math.min(page * pageSize, total);
 
-  const navBtn =
-    'inline-flex h-8 min-w-8 items-center justify-center rounded-lg border px-2 text-xs font-semibold transition-colors disabled:opacity-40 disabled:pointer-events-none';
+  const stepBtn =
+    'inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-xs font-semibold text-foreground transition-colors hover:bg-muted disabled:opacity-40 disabled:pointer-events-none';
+  const pageBtn =
+    'inline-flex h-9 min-w-9 items-center justify-center rounded-lg border px-2.5 text-xs font-semibold tabular-nums transition-colors';
 
   return (
     <div
       className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 sm:px-5 py-3 border-t border-border bg-muted/20 ${className}`}
     >
-      <div className="flex items-center gap-3 text-xs text-muted-foreground">
-        <span>
-          Showing <span className="font-semibold text-foreground tabular-nums">{start}–{end}</span> of{' '}
-          <span className="font-semibold text-foreground tabular-nums">{total}</span> {label}
-        </span>
-        {onPageSizeChange && (
-          <label className="hidden sm:flex items-center gap-1.5">
-            <span>Rows</span>
-            <select
-              value={pageSize}
-              onChange={(e) => onPageSizeChange(Number(e.target.value))}
-              className="rounded-lg border border-border bg-background px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-            >
-              {PAGE_SIZES.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
-      </div>
+      <p className="text-xs text-muted-foreground">
+        Showing <span className="font-semibold text-foreground tabular-nums">{start}</span> to{' '}
+        <span className="font-semibold text-foreground tabular-nums">{end}</span> of{' '}
+        <span className="font-semibold text-foreground tabular-nums">{total}</span> {label}
+      </p>
 
-      {pageCount > 1 && (
-        <nav className="flex items-center gap-1" aria-label="Pagination">
-          <button
-            type="button"
-            aria-label="Previous page"
-            disabled={page <= 1}
-            onClick={() => onPageChange(page - 1)}
-            className={`${navBtn} border-border text-foreground hover:bg-muted`}
-          >
-            <Icon name="ChevronLeftIcon" size={14} />
-          </button>
+      <nav className="flex items-center justify-between sm:justify-end gap-1" aria-label="Pagination">
+        <button
+          type="button"
+          disabled={page <= 1}
+          onClick={() => onPageChange(page - 1)}
+          className={stepBtn}
+        >
+          <Icon name="ChevronLeftIcon" size={14} />
+          Previous
+        </button>
+
+        <div className="hidden sm:flex items-center gap-1 mx-1">
           {pageWindow(page, pageCount).map((p, i) =>
             p === 'gap' ? (
               <span key={`gap-${i}`} className="px-1 text-xs text-muted-foreground">
@@ -132,27 +112,31 @@ export default function Pagination({
                 type="button"
                 aria-current={p === page ? 'page' : undefined}
                 onClick={() => onPageChange(p)}
-                className={`${navBtn} ${
+                className={`${pageBtn} ${
                   p === page
                     ? 'border-primary bg-primary text-primary-foreground'
-                    : 'border-border text-foreground hover:bg-muted'
+                    : 'border-border bg-card text-foreground hover:bg-muted'
                 }`}
               >
                 {p}
               </button>
             ),
           )}
-          <button
-            type="button"
-            aria-label="Next page"
-            disabled={page >= pageCount}
-            onClick={() => onPageChange(page + 1)}
-            className={`${navBtn} border-border text-foreground hover:bg-muted`}
-          >
-            <Icon name="ChevronRightIcon" size={14} />
-          </button>
-        </nav>
-      )}
+        </div>
+        <span className="sm:hidden px-2 text-xs text-muted-foreground tabular-nums">
+          Page {page} of {pageCount}
+        </span>
+
+        <button
+          type="button"
+          disabled={page >= pageCount}
+          onClick={() => onPageChange(page + 1)}
+          className={stepBtn}
+        >
+          Next
+          <Icon name="ChevronRightIcon" size={14} />
+        </button>
+      </nav>
     </div>
   );
 }
