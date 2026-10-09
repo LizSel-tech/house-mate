@@ -294,7 +294,11 @@ export default function ProviderDashboardPage() {
             {loading ? (
               <div className="h-48 rounded-xl bg-muted/50 animate-pulse" />
             ) : (
-              <BarChart legend="Jobs" data={jobsByMonth} />
+              <BarChart
+                legend="Jobs"
+                data={jobsByMonth}
+                formatValue={(v) => `${v} ${v === 1 ? 'job' : 'jobs'}`}
+              />
             )}
           </div>
         </section>
@@ -307,7 +311,13 @@ export default function ProviderDashboardPage() {
             {loading ? (
               <div className="h-48 rounded-xl bg-muted/50 animate-pulse" />
             ) : (
-              <LineChart legend="Released earnings" data={earningsByMonth} />
+              <LineChart
+                legend="Released earnings"
+                data={earningsByMonth}
+                formatValue={(v) =>
+                  `GHS ${v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                }
+              />
             )}
           </div>
         </section>
