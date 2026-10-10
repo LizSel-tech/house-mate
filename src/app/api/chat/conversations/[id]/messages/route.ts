@@ -32,7 +32,7 @@ async function canAccess(conversationId: string, userId: string, role: string) {
     );
     return consent?.ok ? convo : null;
   }
-  if (role === 'user' && convo.userId === userId) return convo;
+  if (convo.userId === userId) return convo;
   if (role === 'artisan') {
     const profile = await queryOne<ArtisanProfile>(
       `SELECT * FROM artisan_profiles WHERE user_id = $1`,
@@ -120,11 +120,12 @@ export async function POST(
 
   await query(`UPDATE conversations SET updated_at = now() WHERE id = $1`, [id]);
 
-  const recipient = await queryOne<{ id: string }>(
-    user.role === 'user'
-      ? `SELECT user_id AS id FROM artisan_profiles WHERE id = $1`
-      : `SELECT $1::uuid AS id`,
-    [user.role === 'user' ? convo.artisanId : convo.userId],
+  const senderIsClient = convo.userId === user.id;
+  const recipient = await queryOne<{ id: string; role: string }>(
+    senderIsClient
+      ? `SELECT u.id, u.role FROM artisan_profiles a JOIN users u ON u.id = a.user_id WHERE a.id = $1`
+      : `SELECT id, role FROM users WHERE id = $1`,
+    [senderIsClient ? convo.artisanId : convo.userId],
   );
   const preview =
     type === 'audio' ? 'sent a voice note' : type === 'file' ? 'sent a file' : `: "${body.slice(0, 100)}"`;
@@ -135,7 +136,7 @@ export async function POST(
       type: 'chat_message',
       title: `New message from ${user.name}`,
       body: type === 'text' ? `${user.name}${preview}` : `${user.name} ${preview}.`,
-      href: `${user.role === 'user' ? '/provider/chat' : '/user/chat'}?c=${id}`,
+      href: `${recipient?.role === 'artisan' ? '/provider/chat' : '/user/chat'}?c=${id}`,
     },
     { skipIfUnread: true },
   );

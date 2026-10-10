@@ -7,16 +7,16 @@ import AppImage from '@/components/ui/AppImage';
 const steps = [
   {
     number: '01',
-    title: 'Book an artisan',
+    title: 'Book a service provider',
     description:
-      'Tell us what needs fixing — plumbing, electrical, carpentry, and more. Pick a verified Fixora pro near you.',
+      'Tell us what needs fixing — plumbing, electrical, carpentry, and more. Pick a verified Craftviva pro near you.',
     icon: 'ChatBubbleBottomCenterTextIcon',
   },
   {
     number: '02',
     title: 'They come to your home',
     description:
-      'Your artisan arrives on time with the right tools. Upfront pricing, no surprises on the invoice.',
+      'Your service provider arrives on time with the right tools. Upfront pricing, no surprises on the invoice.',
     icon: 'WrenchScrewdriverIcon',
   },
   {

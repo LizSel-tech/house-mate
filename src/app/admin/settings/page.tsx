@@ -176,7 +176,7 @@ export default function AdminSettingsPage() {
                 { label: 'Commission rate (%)', value: commissionRate, set: setCommissionRate },
                 { label: 'Subscription (GHS / month)', value: subscriptionFee, set: setSubscriptionFee },
                 { label: 'Customer signup fee (GHS)', value: userSignupFee, set: setUserSignupFee },
-                { label: 'Artisan signup fee (GHS)', value: artisanSignupFee, set: setArtisanSignupFee },
+                { label: 'Service provider signup fee (GHS)', value: artisanSignupFee, set: setArtisanSignupFee },
               ].map((field) => (
                 <label key={field.label} className="block rounded-xl border border-border bg-background p-3">
                   <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">

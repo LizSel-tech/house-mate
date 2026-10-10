@@ -1,6 +1,6 @@
 export const BOOKING_DATA_SQL = `
   SELECT to_jsonb(b) || jsonb_build_object(
-    'user', jsonb_build_object('id', u.id, 'name', u.name, 'phone', u.phone),
+    'user', jsonb_build_object('id', u.id, 'name', u.name, 'phone', u.phone, 'role', u.role),
     'artisan', to_jsonb(a) || jsonb_build_object(
       'user', jsonb_build_object('id', au.id, 'name', au.name, 'phone', au.phone)
     ),

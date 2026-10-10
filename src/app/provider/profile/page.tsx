@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import Icon from '@/components/ui/AppIcon';
 import { Button } from '@/components/ui/Button';
 import ProfileMasthead from '@/components/profile/ProfileMasthead';
+import { categoryLabel } from '@/lib/categories';
 
 type ProfileUser = {
   id: string;
@@ -60,7 +61,7 @@ export default function ProviderProfilePage() {
 
       if (kycRes.ok && kycData.profile) {
         setArtisan({
-          trade: kycData.profile.trade || 'artisan',
+          trade: kycData.profile.trade || '',
           serviceArea: kycData.profile.serviceArea || null,
           verificationStatus: kycData.profile.verificationStatus || 'pending',
           bio: kycData.profile.bio || null,
@@ -134,7 +135,7 @@ export default function ProviderProfilePage() {
         </p>
         <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight">Profile</h1>
         <p className="mt-1 text-sm text-muted-foreground max-w-xl">
-          Your public artisan presence on Fixora — cover, photo, and contact details.
+          Your public service provider presence on Craftviva — cover, photo, and contact details.
         </p>
       </div>
 
@@ -149,7 +150,7 @@ export default function ProviderProfilePage() {
 
       <ProfileMasthead
         name={user?.name}
-        subtitle={artisan?.trade ? `${artisan.trade} · Service provider` : 'Service provider'}
+        subtitle={artisan?.trade ? `${categoryLabel(artisan.trade)} · Service provider` : 'Service provider'}
         avatarUrl={user?.avatarUrl}
         coverUrl={user?.coverUrl}
         badges={[
@@ -195,7 +196,7 @@ export default function ProviderProfilePage() {
             <div className="px-5 py-4 border-b border-border">
               <h2 className="text-base font-bold text-foreground">Contact details</h2>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Name and email customers and Fixora use to reach you
+                Name and email customers and Craftviva use to reach you
               </p>
             </div>
             <form onSubmit={save} className="p-5 space-y-4">

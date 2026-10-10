@@ -17,7 +17,7 @@ export async function GET() {
 
   const artisanId = await getArtisanId(user.id);
   if (!artisanId) {
-    return NextResponse.json({ error: 'Artisan profile not found.' }, { status: 404 });
+    return NextResponse.json({ error: 'Service provider profile not found.' }, { status: 404 });
   }
 
   const services = await query<Service>(
@@ -34,7 +34,7 @@ export async function POST(request: Request) {
 
   const artisanId = await getArtisanId(user.id);
   if (!artisanId) {
-    return NextResponse.json({ error: 'Artisan profile not found.' }, { status: 404 });
+    return NextResponse.json({ error: 'Service provider profile not found.' }, { status: 404 });
   }
 
   const body = (await request.json()) as {

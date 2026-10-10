@@ -16,7 +16,7 @@ export async function POST(
   _request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
-  const { user, error } = await requireSession(['user']);
+  const { user, error } = await requireSession(['user', 'artisan']);
   if (error || !user) return error!;
 
   const { id } = await context.params;
@@ -33,7 +33,7 @@ export async function POST(
   }
   if (booking.status !== 'accepted') {
     return NextResponse.json(
-      { error: 'Payment is only available after the artisan accepts.' },
+      { error: 'Payment is only available after the service provider accepts.' },
       { status: 400 },
     );
   }

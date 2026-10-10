@@ -35,7 +35,7 @@ export default function HeroSection() {
       <div className="absolute inset-0 animate-enter" style={{ animationDuration: '1.2s' }}>
         <AppImage
           src="https://img.rocket.new/generatedImages/rocket_gen_img_1b99a65dd-1779788894920.png"
-          alt="Skilled artisan working in a modern home"
+          alt="Skilled service provider working in a modern home"
           fill
           priority
           className="object-cover object-center"
@@ -56,11 +56,11 @@ export default function HeroSection() {
           <br />
           Fixed Right.
           <br />
-          <span className="text-primary">With Fixora.</span>
+          <span className="text-primary">With Craftviva.</span>
         </h1>
 
         <p className="text-white/75 text-base sm:text-lg md:text-xl font-light max-w-xl leading-relaxed mb-8 sm:mb-10 animate-enter delay-300">
-          Book verified artisans across Ghana — plumbing, electrical, carpentry, painting, and more.
+          Book verified service providers across Ghana — plumbing, electrical, dressmaking, hair making, and more.
           Pay into escrow until the job is done.
         </p>
 
@@ -93,7 +93,7 @@ export default function HeroSection() {
             },
             {
               value: stats ? formatCount(stats.artisansApproved) : '…',
-              label: 'Verified artisans',
+              label: 'Verified service providers',
             },
             {
               value: stats?.averageRating != null ? `${stats.averageRating}★` : 'New',

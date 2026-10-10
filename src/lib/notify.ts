@@ -45,7 +45,7 @@ export function kycDecisionNotification(
     ? {
         type: 'verification_approved',
         title: 'Verification approved',
-        body: 'Your identity is verified. Customers can now find and book you.',
+        body: 'Your identity is verified. Clients can now find and book you.',
         href: '/provider/verification',
       }
     : {
@@ -60,16 +60,24 @@ export type BookingParties = {
   title: string;
   customerId: string;
   customerName: string;
+  customerRole: string;
+  /** Where the customer manages this booking — providers book from their own portal. */
+  customerBookingsHref: string;
   artisanUserId: string;
   artisanName: string;
 };
 
+export function customerBookingsHref(role: string | null | undefined) {
+  return role === 'artisan' ? '/provider/bookings' : '/user/bookings';
+}
+
 export async function getBookingParties(bookingId: string): Promise<BookingParties | null> {
   try {
-    return await queryOne<BookingParties>(
+    const row = await queryOne<Omit<BookingParties, 'customerBookingsHref'>>(
       `SELECT COALESCE(s.title, 'Custom job') AS title,
               cu.id   AS customer_id,
               cu.name AS customer_name,
+              cu.role AS customer_role,
               au.id   AS artisan_user_id,
               au.name AS artisan_name
          FROM bookings b
@@ -80,6 +88,7 @@ export async function getBookingParties(bookingId: string): Promise<BookingParti
         WHERE b.id = $1`,
       [bookingId],
     );
+    return row ? { ...row, customerBookingsHref: customerBookingsHref(row.customerRole) } : null;
   } catch (err) {
     console.error('getBookingParties failed', err);
     return null;

@@ -168,7 +168,7 @@ export default function ProviderServicesPage() {
             Services & prices
           </h1>
           <p className="mt-1.5 text-sm text-muted-foreground max-w-xl">
-            List what you offer. Customers see these when they search verified artisans.
+            List what you offer. Clients see these when they search verified service providers.
           </p>
         </div>
         <Button type="button" onClick={openCreate} className="!rounded-xl !min-h-[44px] w-fit">

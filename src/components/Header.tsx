@@ -49,7 +49,7 @@ export default function Header() {
               className="transition-transform duration-300 group-hover:scale-105"
             />
             <span className="font-display text-xl font-bold text-white tracking-tight hidden sm:block">
-              Fixora
+              Craftviva
             </span>
           </Link>
 

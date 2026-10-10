@@ -9,7 +9,7 @@ export async function POST(
   _request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
-  const { user, error } = await requireSession(['user']);
+  const { user, error } = await requireSession(['user', 'artisan']);
   if (error || !user) return error!;
 
   const { id } = await context.params;
@@ -35,7 +35,7 @@ export async function POST(
   }
   if (booking.status !== 'in_progress' && booking.status !== 'completed') {
     return NextResponse.json(
-      { error: 'Job must be in progress or marked completed by artisan first.' },
+      { error: 'Job must be in progress or marked completed by the service provider first.' },
       { status: 400 },
     );
   }
@@ -72,6 +72,6 @@ export async function POST(
   return NextResponse.json({
     ...result,
     artisanPayout: payout,
-    message: 'Escrow released to artisan (mock payout). You can leave a review.',
+    message: 'Escrow released to the service provider (mock payout). You can leave a review.',
   });
 }

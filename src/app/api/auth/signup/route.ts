@@ -105,7 +105,7 @@ export async function POST(request: Request) {
 
       if (role === 'artisan') {
         await queryOne(
-          `INSERT INTO artisan_profiles (user_id, trade) VALUES ($1, 'plumber')`,
+          `INSERT INTO artisan_profiles (user_id, trade) VALUES ($1, '')`,
           [created.id],
           tx,
         );
@@ -124,7 +124,7 @@ export async function POST(request: Request) {
     await notifyAdmin({
       type: 'signup_registration',
       title: 'New registration submitted',
-      body: `${name} signed up as ${role === 'artisan' ? 'artisan' : 'customer'} (${phone}).`,
+      body: `${name} signed up as ${role === 'artisan' ? 'service provider' : 'client'} (${phone}).`,
       href: '/admin/payments',
       meta: { userId: user.id, role, phone },
     });

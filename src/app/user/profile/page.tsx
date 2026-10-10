@@ -14,7 +14,7 @@ export default async function UserProfilePage() {
       <div>
         <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">Account</p>
         <h1 className="text-3xl font-extrabold text-foreground tracking-tight">Profile</h1>
-        <p className="mt-2 text-muted-foreground">Your customer account details for Fixora.</p>
+        <p className="mt-2 text-muted-foreground">Your customer account details for Craftviva.</p>
       </div>
 
       <div className="rounded-3xl border border-border bg-card p-6 sm:p-8 max-w-lg">

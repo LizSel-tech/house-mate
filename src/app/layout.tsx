@@ -16,9 +16,9 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'),
-  title: 'Fixora — Verified artisans across Ghana',
+  title: 'Craftviva — Verified service providers across Ghana',
   description:
-    'Fixora connects households with verified artisans — book jobs, pay into escrow, and confirm when work is done.',
+    'Craftviva connects households with verified service providers — book jobs, pay into escrow, and confirm when work is done.',
   icons: {
     icon: [{ url: '/favicon.svg', type: 'image/svg+xml' }],
   },

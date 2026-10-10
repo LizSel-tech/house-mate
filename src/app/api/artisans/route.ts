@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
+import { getSession } from '@/lib/auth/session';
 import { queryData } from '@/lib/db';
 
 export async function GET(request: Request) {
+  const session = await getSession();
   const { searchParams } = new URL(request.url);
   const q = searchParams.get('q')?.trim() || '';
   const trade = searchParams.get('trade')?.trim() || '';
@@ -13,6 +15,10 @@ export async function GET(request: Request) {
   ];
   const params: unknown[] = [];
 
+  if (session?.role === 'artisan') {
+    params.push(session.id);
+    filters.push(`a.user_id <> $${params.length}`);
+  }
   if (trade) {
     params.push(`%${trade}%`);
     filters.push(`a.trade ILIKE $${params.length}`);

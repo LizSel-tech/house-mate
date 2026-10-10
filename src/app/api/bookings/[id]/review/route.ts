@@ -8,7 +8,7 @@ export async function POST(
   request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
-  const { user, error } = await requireSession(['user']);
+  const { user, error } = await requireSession(['user', 'artisan']);
   if (error || !user) return error!;
 
   const { id } = await context.params;
@@ -73,7 +73,7 @@ export async function POST(
     type: 'review_received',
     title: `New ${rating}★ review`,
     body: `${user.name} left a ${rating}-star review${body.comment?.trim() ? `: "${body.comment.trim().slice(0, 120)}"` : '.'}`,
-    href: '/provider',
+    href: '/provider/reviews',
   });
 
   return NextResponse.json({ review }, { status: 201 });

@@ -90,7 +90,7 @@ export default function AdminProfilePage() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <AdminPageHeader eyebrow="Account" title="Profile" description="Your admin account details for Fixora." />
+        <AdminPageHeader eyebrow="Account" title="Profile" description="Your admin account details for Craftviva." />
         <div className="h-64 rounded-2xl border border-border bg-card animate-pulse" />
       </div>
     );
@@ -222,7 +222,7 @@ export default function AdminProfilePage() {
                 <div>
                   <p className="font-semibold text-foreground">Admin privileges</p>
                   <p className="text-muted-foreground mt-0.5">
-                    You can review payments, KYC, bookings, and chat conversations across Fixora.
+                    You can review payments, KYC, bookings, and chat conversations across Craftviva.
                   </p>
                 </div>
               </li>

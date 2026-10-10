@@ -138,7 +138,7 @@ export default function SignupPage() {
                 <Icon name="WrenchScrewdriverIcon" size={18} />
               </span>
               <p className="text-sm font-bold text-foreground">I provide work</p>
-              <p className="text-xs text-muted-foreground mt-1">Artisan · GHS {fees.artisan}</p>
+              <p className="text-xs text-muted-foreground mt-1">Service provider · GHS {fees.artisan}</p>
             </button>
           </div>
 

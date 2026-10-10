@@ -137,11 +137,11 @@ export async function PATCH(request: Request) {
 
   await notifyUser(payment.userId, {
     type: 'account_activated',
-    title: 'Welcome to Fixora',
+    title: 'Welcome to Craftviva',
     body:
       payment.user.role === 'artisan'
         ? 'Your signup payment was confirmed. Complete identity verification to start receiving bookings.'
-        : 'Your signup payment was confirmed. Find a verified artisan and book your first job.',
+        : 'Your signup payment was confirmed. Find a verified service provider and book your first job.',
     href: payment.user.role === 'artisan' ? '/provider/verification' : '/user/search',
   });
 

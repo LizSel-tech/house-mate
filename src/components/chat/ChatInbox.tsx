@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button';
 import EmojiPicker, { EMOJI_FONT } from '@/components/chat/EmojiPicker';
 import VoiceNote from '@/components/chat/VoiceNote';
 import { useImageError } from '@/components/ui/useImageError';
+import { categoryLabel } from '@/lib/categories';
 
 type SessionUser = {
   id: string;
@@ -39,7 +40,7 @@ type ArtisanOption = {
 };
 
 const DISCLOSURE =
-  'Messages in this chat can be reviewed by Fixora admins for safety and dispute resolution.';
+  'Messages in this chat can be reviewed by Craftviva admins for safety and dispute resolution.';
 
 function initials(name?: string | null) {
   if (!name) return '?';
@@ -262,7 +263,7 @@ export default function ChatInbox() {
     if (session?.role === 'user' || session?.role === 'artisan' || session?.role === 'admin') {
       loadConversations();
     }
-    if (session?.role === 'user') {
+    if (session?.role === 'user' || session?.role === 'artisan') {
       fetch('/api/artisans')
         .then((r) => r.json())
         .then((data) => setArtisans(data.artisans || []))
@@ -385,18 +386,21 @@ export default function ChatInbox() {
     }
   };
 
-  const peerName = (c: Conversation) =>
-    session?.role === 'artisan' ? c.user.name : c.artisan.user.name;
+  // Service providers can also book other providers, so "who is the other person"
+  // depends on which side of this conversation the viewer is on, not their role.
+  const iAmClient = (c: Conversation) => c.userId === session?.id;
+
+  const peerName = (c: Conversation) => (iAmClient(c) ? c.artisan.user.name : c.user.name);
 
   const peerAvatar = (c: Conversation) =>
-    session?.role === 'artisan' ? c.user.avatarUrl : c.artisan.user.avatarUrl;
+    iAmClient(c) ? c.artisan.user.avatarUrl : c.user.avatarUrl;
 
   const listTitle = (c: Conversation) =>
     isAdmin ? `${c.user.name} ↔ ${c.artisan.user.name}` : peerName(c);
 
   const listSubtitle = (c: Conversation) =>
     isAdmin
-      ? `${c.artisan.trade || 'Artisan'} · ${preview(c)}`
+      ? `${categoryLabel(c.artisan.trade) || 'Service provider'} · ${preview(c)}`
       : preview(c);
 
   const active = conversations.find((c) => c.id === activeId);
@@ -416,10 +420,10 @@ export default function ChatInbox() {
   }, [conversations, query]);
 
   const inboxSubtitle = isAdmin
-    ? 'Monitor conversations between customers and artisans'
+    ? 'Monitor conversations between clients and service providers'
     : session?.role === 'artisan'
-      ? 'Messages from customers'
-      : 'Message verified artisans';
+      ? 'Messages from clients and other service providers'
+      : 'Message verified service providers';
 
   return (
     <div className="h-full min-h-0 flex flex-col md:flex-row rounded-none md:rounded-4xl border-0 md:border border-border bg-card overflow-hidden shadow-sm">
@@ -444,7 +448,7 @@ export default function ChatInbox() {
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search customer or artisan…"
+                placeholder="Search client or service provider…"
                 className="w-full pl-9 pr-3 py-2 rounded-xl border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
               />
             </div>
@@ -500,7 +504,7 @@ export default function ChatInbox() {
               </button>
             );
           })}
-          {session?.role === 'user' && newArtisans.length > 0 && (
+          {canSend && newArtisans.length > 0 && (
             <div className="pt-4">
               <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground px-1 mb-2">
                 Start a chat
@@ -515,7 +519,7 @@ export default function ChatInbox() {
                   <Avatar name={a.user.name} size="sm" />
                   <span className="text-sm min-w-0">
                     <span className="font-medium text-foreground">{a.user.name}</span>
-                    <span className="text-muted-foreground"> · {a.trade}</span>
+                    <span className="text-muted-foreground"> · {categoryLabel(a.trade)}</span>
                   </span>
                 </button>
               ))}
@@ -526,7 +530,7 @@ export default function ChatInbox() {
               {isAdmin
                 ? 'No conversations yet.'
                 : session?.role === 'artisan'
-                  ? 'Customers can start a chat with you from their account.'
+                  ? 'Clients can start a chat with you from their account.'
                   : 'No conversations yet.'}
             </p>
           )}
@@ -543,7 +547,7 @@ export default function ChatInbox() {
               <p className="font-semibold text-foreground">Select a conversation</p>
               <p className="text-sm text-muted-foreground mt-1 max-w-xs mx-auto">
                 {isAdmin
-                  ? 'Open a thread to review messages between a customer and artisan.'
+                  ? 'Open a thread to review messages between a client and a service provider.'
                   : 'Pick someone from the list to start messaging.'}
               </p>
             </div>
@@ -569,7 +573,7 @@ export default function ChatInbox() {
                         {active.user.name} ↔ {active.artisan.user.name}
                       </p>
                       <p className="text-[11px] text-muted-foreground capitalize">
-                        Customer · {active.artisan.trade || 'Artisan'}
+                        Client · {categoryLabel(active.artisan.trade) || 'Service provider'}
                       </p>
                     </div>
                   </div>
@@ -579,7 +583,9 @@ export default function ChatInbox() {
                     <div className="min-w-0">
                       <p className="text-sm font-bold text-foreground truncate">{peerName(active)}</p>
                       <p className="text-[11px] text-muted-foreground capitalize">
-                        {session.role === 'artisan' ? 'Customer' : active.artisan.trade || 'Artisan'}
+                        {iAmClient(active)
+                          ? categoryLabel(active.artisan.trade) || 'Service provider'
+                          : 'Client'}
                       </p>
                     </div>
                   </>
@@ -599,8 +605,8 @@ export default function ChatInbox() {
                 const bubbleMine = isAdmin ? !fromCustomer : mine;
                 const senderLabel = isAdmin
                   ? fromCustomer
-                    ? active?.user.name || 'Customer'
-                    : active?.artisan.user.name || 'Artisan'
+                    ? active?.user.name || 'Client'
+                    : active?.artisan.user.name || 'Service provider'
                   : null;
                 const showDay = i === 0 || !sameDay(messages[i - 1].createdAt, m.createdAt);
                 return (

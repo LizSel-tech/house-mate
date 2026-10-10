@@ -46,8 +46,8 @@ export async function PATCH(
     return NextResponse.json({ error: 'Booking not found.' }, { status: 404 });
   }
 
-  const isOwnerUser = user.role === 'user' && booking.userId === user.id;
   const isOwnerArtisan = user.role === 'artisan' && booking.artisan.userId === user.id;
+  const isOwnerUser = !isOwnerArtisan && user.role !== 'admin' && booking.userId === user.id;
   const isAdmin = user.role === 'admin';
 
   if (!isOwnerUser && !isOwnerArtisan && !isAdmin) {
@@ -85,7 +85,12 @@ export async function PATCH(
   const updated = await queryDataOne(`${BOOKING_DATA_SQL} WHERE b.id = $1`, [id]);
 
   if (body.status !== booking.status) {
-    await notifyStatusChange(id, booking.status, body.status, user.role);
+    await notifyStatusChange(
+      id,
+      booking.status,
+      body.status,
+      isAdmin ? 'admin' : isOwnerArtisan ? 'artisan' : 'user',
+    );
   }
 
   return NextResponse.json({ booking: updated });
@@ -95,7 +100,7 @@ async function notifyStatusChange(
   bookingId: string,
   from: BookingStatus,
   to: BookingStatus,
-  actorRole: string,
+  actor: 'admin' | 'artisan' | 'user',
 ) {
   const parties = await getBookingParties(bookingId);
   if (!parties) return;
@@ -106,24 +111,24 @@ async function notifyStatusChange(
       type: 'booking_accepted',
       title: 'Booking accepted',
       body: `${parties.artisanName} accepted ${job}. Pay into escrow so work can start.`,
-      href: '/user/bookings',
+      href: parties.customerBookingsHref,
     });
   } else if (to === 'completed') {
     await notifyUser(parties.customerId, {
       type: 'booking_work_done',
       title: 'Work marked done',
       body: `${parties.artisanName} marked ${job} as done. Confirm completion to release payment.`,
-      href: '/user/bookings',
+      href: parties.customerBookingsHref,
     });
   } else if (to === 'cancelled') {
-    if (actorRole === 'artisan') {
+    if (actor === 'artisan') {
       await notifyUser(parties.customerId, {
         type: 'booking_declined',
         title: from === 'requested' ? 'Booking declined' : 'Booking cancelled',
         body: `${parties.artisanName} ${from === 'requested' ? 'declined' : 'cancelled'} ${job}.`,
-        href: '/user/bookings',
+        href: parties.customerBookingsHref,
       });
-    } else if (actorRole === 'user') {
+    } else if (actor === 'user') {
       await notifyUser(parties.artisanUserId, {
         type: 'booking_cancelled',
         title: 'Booking cancelled',
@@ -132,13 +137,13 @@ async function notifyStatusChange(
       });
     } else {
       for (const [userId, href] of [
-        [parties.customerId, '/user/bookings'],
+        [parties.customerId, parties.customerBookingsHref],
         [parties.artisanUserId, '/provider/jobs'],
       ] as const) {
         await notifyUser(userId, {
           type: 'booking_cancelled',
           title: 'Booking cancelled',
-          body: `Fixora cancelled ${job}.`,
+          body: `Craftviva cancelled ${job}.`,
           href,
         });
       }

@@ -8,9 +8,9 @@ import HowItWorksSection from './components/HowItWorksSection';
 import ContactSection from './components/ContactSection';
 
 export const metadata: Metadata = {
-  title: 'Fixora — Verified artisans across Ghana',
+  title: 'Craftviva — Verified service providers across Ghana',
   description:
-    'Fixora connects households with verified artisans — book jobs, pay into escrow, and confirm when work is done.',
+    'Craftviva connects households with verified service providers — book jobs, pay into escrow, and confirm when work is done.',
 };
 
 export default function HomePage() {

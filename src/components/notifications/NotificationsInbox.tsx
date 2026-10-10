@@ -8,7 +8,7 @@ import Pagination, { usePagination } from '@/components/ui/Pagination';
 import { AdminPageHeader, EmptyState, KpiCard, StatusBadge, formatDateTime } from '@/components/admin/AdminUI';
 import { AdminModal, IconActionButton } from '@/components/admin/AdminModal';
 
-export const NOTIFICATIONS_CHANGED = 'fixora:notifications-changed';
+export const NOTIFICATIONS_CHANGED = 'craftviva:notifications-changed';
 
 type Notification = {
   id: string;

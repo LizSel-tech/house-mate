@@ -4,28 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import Icon from '@/components/ui/AppIcon';
 
-const FALLBACK_TRADES = [
-  { trade: 'plumber', icon: 'WrenchScrewdriverIcon', blurb: 'Leaks, drains, and pipe fixes' },
-  { trade: 'electrician', icon: 'BoltIcon', blurb: 'Outlets, fixtures, and wiring' },
-  { trade: 'carpenter', icon: 'HomeModernIcon', blurb: 'Doors, shelves, and woodwork' },
-  { trade: 'painter', icon: 'PaintBrushIcon', blurb: 'Rooms, trim, and touch-ups' },
-  { trade: 'cleaner', icon: 'SparklesIcon', blurb: 'Deep cleans and home refresh' },
-  { trade: 'ac', icon: 'CpuChipIcon', blurb: 'AC install, service, and repair' },
-];
-
-function titleCase(trade: string) {
-  return trade.charAt(0).toUpperCase() + trade.slice(1);
-}
-
-function iconFor(trade: string) {
-  const found = FALLBACK_TRADES.find((t) => t.trade === trade.toLowerCase());
-  return found?.icon || 'WrenchIcon';
-}
-
-function blurbFor(trade: string) {
-  const found = FALLBACK_TRADES.find((t) => t.trade === trade.toLowerCase());
-  return found?.blurb || 'Verified Fixora artisans ready to help';
-}
+import { SERVICE_CATEGORIES, categoryIcon, categoryLabel, findCategory } from '@/lib/categories';
 
 export default function ServicesSection() {
   const sectionRef = useRef<HTMLDivElement>(null);
@@ -55,15 +34,28 @@ export default function ServicesSection() {
     return () => observer.disconnect();
   }, [trades]);
 
-  const cards =
-    trades.length > 0
-      ? trades.map((t) => ({
-          trade: t.trade,
-          count: t.count,
-          icon: iconFor(t.trade),
-          blurb: blurbFor(t.trade),
-        }))
-      : FALLBACK_TRADES.map((t) => ({ ...t, count: 0 }));
+  const liveCount = (trade: string) =>
+    trades
+      .filter((t) => findCategory(t.trade)?.trade === trade)
+      .reduce((sum, t) => sum + Number(t.count || 0), 0);
+  const cards = [
+    ...SERVICE_CATEGORIES.map((c) => ({
+      trade: c.trade,
+      label: c.label,
+      icon: c.icon,
+      blurb: c.blurb,
+      count: liveCount(c.trade),
+    })),
+    ...trades
+      .filter((t) => !findCategory(t.trade))
+      .map((t) => ({
+        trade: t.trade,
+        label: categoryLabel(t.trade),
+        icon: categoryIcon(t.trade),
+        blurb: 'Verified Craftviva service providers ready to help',
+        count: Number(t.count || 0),
+      })),
+  ].sort((a, b) => b.count - a.count);
 
   return (
     <section id="services" ref={sectionRef} className="bg-background py-12 sm:py-20 px-5 sm:px-6 md:px-12 lg:px-20">
@@ -71,20 +63,20 @@ export default function ServicesSection() {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-10 sm:mb-14 gap-4 sm:gap-6 reveal">
           <div>
             <span className="inline-block px-4 py-1.5 rounded-full border border-border text-xs font-bold uppercase tracking-widest text-muted-foreground mb-5">
-              Live trades on Fixora
+              Live trades on Craftviva
             </span>
             <h2 className="text-section-lg font-extrabold text-foreground max-w-lg">
-              Every repair.
+              Every service.
               <br />
-              <span className="text-muted-foreground">Verified artisans.</span>
+              <span className="text-muted-foreground">Verified service providers.</span>
             </h2>
           </div>
           <p className="text-muted-foreground text-lg font-light max-w-sm leading-relaxed">
-            Categories update from real approved artisans on the platform — book with confidence.
+            From home repairs to dressmaking, hair, and catering — every provider is verified before they can take bookings.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
           {cards.map((card, i) => (
             <Link
               key={card.trade}
@@ -103,7 +95,7 @@ export default function ServicesSection() {
                   </span>
                 )}
               </div>
-              <h3 className="mt-5 text-xl font-bold text-foreground">{titleCase(card.trade)}</h3>
+              <h3 className="mt-5 text-xl font-bold text-foreground">{card.label}</h3>
               <p className="mt-2 text-sm text-muted-foreground leading-relaxed">{card.blurb}</p>
             </Link>
           ))}
@@ -113,7 +105,7 @@ export default function ServicesSection() {
           <div>
             <h3 className="text-lg font-bold">Ready to book?</h3>
             <p className="text-sm text-secondary-foreground/70 mt-1">
-              Create a free account and find a verified artisan near you.
+              Create a free account and find a verified service provider near you.
             </p>
           </div>
           <Link

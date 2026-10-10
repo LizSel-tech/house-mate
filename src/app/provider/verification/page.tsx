@@ -2,6 +2,10 @@
 
 import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/Button';
+import Select from '@/components/ui/Select';
+import { SERVICE_CATEGORIES, findCategory } from '@/lib/categories';
+
+const OTHER_TRADE = '__other__';
 
 type KycRecord = {
   id: string;
@@ -54,7 +58,8 @@ export default function ProviderVerificationPage() {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [ghanaCardNumber, setGhanaCardNumber] = useState('');
-  const [trade, setTrade] = useState('plumber');
+  const [trade, setTrade] = useState('');
+  const [tradeChoice, setTradeChoice] = useState('');
   const [serviceArea, setServiceArea] = useState('');
   const [bio, setBio] = useState('');
 
@@ -81,7 +86,10 @@ export default function ProviderVerificationPage() {
       setProfile(data.profile);
       setKyc(data.kyc);
       if (data.profile) {
-        setTrade(data.profile.trade || 'plumber');
+        const saved = String(data.profile.trade || '').trim();
+        const match = findCategory(saved);
+        setTrade(match ? match.trade : saved);
+        setTradeChoice(match ? match.trade : saved ? OTHER_TRADE : '');
         setServiceArea(data.profile.serviceArea || '');
         setBio(data.profile.bio || '');
       }
@@ -165,6 +173,10 @@ export default function ProviderVerificationPage() {
   const onProfileContinue = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
+    if (!trade.trim()) {
+      setError('Choose the service category you offer.');
+      return;
+    }
     if (!consent) {
       setError('Please accept the privacy notice to continue.');
       return;
@@ -369,14 +381,14 @@ export default function ProviderVerificationPage() {
           Identity verification
         </h1>
         <p className="mt-1.5 text-sm text-muted-foreground max-w-2xl">
-          Verify with your Ghana Card and a guided face check. Approved artisans can receive bookings.
+          Verify with your Ghana Card and a guided face check. Approved service providers can receive bookings.
         </p>
       </div>
 
       <div className="rounded-2xl border border-border bg-card overflow-hidden">
         <div className="px-5 py-4 border-b border-border flex flex-wrap items-center gap-2">
           <span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${artisanTone}`}>
-            Artisan · {profile?.verificationStatus ? statusLabel(profile.verificationStatus) : '…'}
+            Service provider · {profile?.verificationStatus ? statusLabel(profile.verificationStatus) : '…'}
           </span>
           {kyc && (
             <span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${kycTone}`}>
@@ -455,13 +467,31 @@ export default function ProviderVerificationPage() {
             required
           />
           <div className="grid sm:grid-cols-2 gap-4">
-            <input
-              value={trade}
-              onChange={(e) => setTrade(e.target.value)}
-              placeholder="Trade"
-              className="px-4 py-3 rounded-2xl border border-border bg-background text-sm"
-              required
-            />
+            <div className="space-y-2">
+              <Select
+                value={tradeChoice}
+                onChange={(value) => {
+                  setTradeChoice(value);
+                  setTrade(value === OTHER_TRADE ? '' : value);
+                }}
+                placeholder="Service category"
+                name="tradeChoice"
+                required
+                options={[
+                  ...SERVICE_CATEGORIES.map((c) => ({ value: c.trade, label: c.label })),
+                  { value: OTHER_TRADE, label: 'Other (type it in)' },
+                ]}
+              />
+              {tradeChoice === OTHER_TRADE && (
+                <input
+                  value={trade}
+                  onChange={(e) => setTrade(e.target.value)}
+                  placeholder="Your service (e.g. shoemaking)"
+                  className="w-full px-4 py-3 rounded-2xl border border-border bg-background text-sm"
+                  required
+                />
+              )}
+            </div>
             <input
               value={serviceArea}
               onChange={(e) => setServiceArea(e.target.value)}

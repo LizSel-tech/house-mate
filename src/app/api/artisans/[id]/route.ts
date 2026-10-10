@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { getSession } from '@/lib/auth/session';
 import { queryDataOne } from '@/lib/db';
 
 export async function GET(
@@ -34,8 +35,10 @@ export async function GET(
   );
 
   if (!artisan) {
-    return NextResponse.json({ error: 'Artisan not found or not verified.' }, { status: 404 });
+    return NextResponse.json({ error: 'Service provider not found or not verified.' }, { status: 404 });
   }
+
+  const session = await getSession();
 
   const services = (artisan.services as Record<string, unknown>[]) || [];
   const reviews = (artisan.reviews as Record<string, unknown>[]) || [];
@@ -48,6 +51,7 @@ export async function GET(
       serviceArea: artisan.serviceArea,
       averageRating: Number(artisan.averageRating),
       jobsCompleted: artisan.jobsCompleted,
+      isSelf: Boolean(session && session.id === artisan.userId),
       user: artisan.user,
       services: services.map((s) => ({
         id: s.id,

@@ -45,7 +45,7 @@ function createTransport() {
 
 function fromHeader(): string {
   const address = env('MAIL_FROM_ADDRESS')!;
-  const name = unwrapQuotes(env('MAIL_FROM_NAME')) || 'Fixora';
+  const name = unwrapQuotes(env('MAIL_FROM_NAME')) || 'Craftviva';
   return `${name} <${address}>`;
 }
 
@@ -76,7 +76,7 @@ function renderEmailLayout(input: {
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#FFFFFF;border:1px solid #E7E5E4;border-radius:16px;">
           <tr>
             <td style="background:#292524;padding:24px 32px;border-bottom:3px solid #D97706;">
-              <p style="margin:0;font-size:20px;font-weight:800;letter-spacing:-0.03em;color:#FFFFFF;">Fixora</p>
+              <p style="margin:0;font-size:20px;font-weight:800;letter-spacing:-0.03em;color:#FFFFFF;">Craftviva</p>
               <p style="margin:6px 0 0;font-size:11px;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;color:#D97706;">Trusted home services</p>
             </td>
           </tr>
@@ -85,8 +85,8 @@ function renderEmailLayout(input: {
           </tr>
           <tr>
             <td style="padding:20px 32px 28px;border-top:1px solid #E7E5E4;">
-              <p style="margin:0 0 8px;font-size:12px;line-height:1.5;color:#78716C;">Verified artisans across Ghana. Pay with escrow until the job is done.</p>
-              <p style="margin:0;font-size:12px;color:#A8A29E;">&copy; ${year} Fixora · This is an automated message.</p>
+              <p style="margin:0 0 8px;font-size:12px;line-height:1.5;color:#78716C;">Verified service providers across Ghana. Pay with escrow until the job is done.</p>
+              <p style="margin:0;font-size:12px;color:#A8A29E;">&copy; ${year} Craftviva · This is an automated message.</p>
             </td>
           </tr>
         </table>
@@ -126,12 +126,12 @@ export async function sendOtpEmail(input: {
   const lead =
     input.reason === 'payment_approved'
       ? 'Your signup payment is confirmed. Use this code to sign in and finish setting up.'
-      : 'Use this one-time code to sign in to Fixora.';
+      : 'Use this one-time code to sign in to Craftviva.';
   const subject =
     input.reason === 'payment_approved'
-      ? 'Payment approved - your Fixora login code'
-      : 'Your Fixora login code';
-  const preheader = 'Your 6-digit Fixora login code expires in 5 minutes.';
+      ? 'Payment approved - your Craftviva login code'
+      : 'Your Craftviva login code';
+  const preheader = 'Your 6-digit Craftviva login code expires in 5 minutes.';
 
   const text = `${greeting}
 
@@ -141,9 +141,9 @@ ${input.code}
 
 This code expires in 5 minutes. If you did not request it, you can ignore this email.
 
-Verified artisans across Ghana. Pay with escrow until the job is done.
+Verified service providers across Ghana. Pay with escrow until the job is done.
 
-- Fixora`;
+- Craftviva`;
 
   const html = renderEmailLayout({
     preheader,

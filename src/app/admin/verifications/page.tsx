@@ -8,6 +8,7 @@ import {
   EmptyState,
   StatusBadge,
 } from '@/components/admin/AdminUI';
+import { categoryLabel } from '@/lib/categories';
 
 type Verification = {
   id: string;
@@ -135,7 +136,7 @@ export default function AdminVerificationsPage() {
     try {
       const reason =
         status === 'rejected'
-          ? window.prompt('Optional rejection reason (shown to the artisan):') || undefined
+          ? window.prompt('Optional rejection reason (shown to the service provider):') || undefined
           : undefined;
       const res = await fetch(`/api/admin/kyc/${id}`, {
         method: 'PATCH',
@@ -164,7 +165,7 @@ export default function AdminVerificationsPage() {
       <AdminPageHeader
         eyebrow="Compliance"
         title="Verifications"
-        description="Review artisan Ghana Card, selfie, and liveness frames, then approve or reject."
+        description="Review service provider Ghana Card, selfie, and liveness frames, then approve or reject."
         actions={
           <div className="flex gap-2">
             <div className="rounded-xl border border-border bg-card px-3.5 py-2 text-center">
@@ -310,7 +311,7 @@ function KycCard({
           <p className="text-base font-bold text-foreground">{item.user.name}</p>
           <p className="text-sm text-muted-foreground mt-1">
             {[item.firstName, item.lastName].filter(Boolean).join(' ') || '—'} ·{' '}
-            {item.artisan?.trade || 'Artisan'} · {item.artisan?.serviceArea || 'No area'} · {item.user.phone}
+            {categoryLabel(item.artisan?.trade) || 'Service provider'} · {item.artisan?.serviceArea || 'No area'} · {item.user.phone}
           </p>
           <p className="text-sm text-muted-foreground mt-1">
             Ghana Card {item.ghanaCardNumber || '—'} · Artisan {item.artisan?.verificationStatus || '—'}

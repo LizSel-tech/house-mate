@@ -56,23 +56,16 @@ export async function GET() {
     return NextResponse.json({ conversations });
   }
 
-  const profile = await queryOne<ArtisanProfile>(
-    `SELECT * FROM artisan_profiles WHERE user_id = $1`,
-    [user.id],
-  );
-  if (!profile) {
-    return NextResponse.json({ conversations: [] });
-  }
-
+  // Providers see chats from their clients and chats they started with other providers.
   const conversations = await queryData(
-    `${LIST_SQL} WHERE c.artisan_id = $1 ORDER BY c.updated_at DESC`,
-    [profile.id],
+    `${LIST_SQL} WHERE a.user_id = $1 OR c.user_id = $1 ORDER BY c.updated_at DESC`,
+    [user.id],
   );
   return NextResponse.json({ conversations });
 }
 
 export async function POST(request: Request) {
-  const { user, error } = await requireSession(['user']);
+  const { user, error } = await requireSession(['user', 'artisan']);
   if (error || !user) return error!;
 
   const body = (await request.json()) as { artisanId?: string };
@@ -85,7 +78,10 @@ export async function POST(request: Request) {
     [body.artisanId],
   );
   if (!artisan) {
-    return NextResponse.json({ error: 'Verified artisan not found.' }, { status: 404 });
+    return NextResponse.json({ error: 'Verified service provider not found.' }, { status: 404 });
+  }
+  if (artisan.userId === user.id) {
+    return NextResponse.json({ error: "You can't start a chat with yourself." }, { status: 400 });
   }
 
   const existing = await queryOne<{ id: string }>(

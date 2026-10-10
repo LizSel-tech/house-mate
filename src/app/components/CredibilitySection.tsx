@@ -77,7 +77,7 @@ export default function CredibilitySection() {
     },
     {
       value: stats ? formatCount(stats.artisansApproved) : '…',
-      label: 'Verified artisans',
+      label: 'Verified service providers',
       icon: 'WrenchScrewdriverIcon',
     },
     {
@@ -123,7 +123,7 @@ export default function CredibilitySection() {
             <span className="text-white/40">customers say.</span>
           </h2>
           <p className="text-white/50 text-lg font-light leading-relaxed">
-            Live reviews from Fixora bookings — honest feedback after escrow is released.
+            Live reviews from Craftviva bookings — honest feedback after escrow is released.
           </p>
         </div>
 
@@ -132,7 +132,7 @@ export default function CredibilitySection() {
             <Icon name="ChatBubbleLeftEllipsisIcon" size={28} className="text-primary/60 mx-auto mb-4" />
             <p className="text-white font-bold text-lg">Be the first to leave a review</p>
             <p className="text-white/50 text-sm mt-2 max-w-md mx-auto">
-              As customers complete jobs on Fixora, real ratings and comments will appear here.
+              As customers complete jobs on Craftviva, real ratings and comments will appear here.
             </p>
           </div>
         ) : (

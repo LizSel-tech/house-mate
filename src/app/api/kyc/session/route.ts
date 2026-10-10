@@ -28,7 +28,7 @@ export async function POST(request: Request) {
     [user.id],
   );
   if (!profile) {
-    return NextResponse.json({ error: 'Artisan profile not found.' }, { status: 404 });
+    return NextResponse.json({ error: 'Service provider profile not found.' }, { status: 404 });
   }
 
   if (body.trade || body.serviceArea || body.bio !== undefined) {

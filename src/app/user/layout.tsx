@@ -4,7 +4,7 @@ import { getSession } from '@/lib/auth/session';
 
 const navItems: PortalNavItem[] = [
   { href: '/user', label: 'Home page', icon: 'HomeIcon' },
-  { href: '/user/search', label: 'Find artisans', icon: 'MagnifyingGlassIcon' },
+  { href: '/user/search', label: 'Find service providers', icon: 'MagnifyingGlassIcon' },
   { href: '/user/bookings', label: 'My bookings', icon: 'CalendarDaysIcon' },
   { href: '/user/notifications', label: 'Notifications', icon: 'BellAlertIcon' },
   { href: '/user/settings', label: 'Settings', icon: 'Cog6ToothIcon' },

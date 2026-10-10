@@ -108,7 +108,7 @@ export default function PortalShell({
           <Link href="/" className="flex items-center gap-2.5">
             <AppLogo size={32} />
             <div>
-              <p className="font-bold tracking-tight">Fixora</p>
+              <p className="font-bold tracking-tight">Craftviva</p>
               <p className="text-[10px] uppercase tracking-widest text-white/40 mt-0.5">
                 {title}
               </p>

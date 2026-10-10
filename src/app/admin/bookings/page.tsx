@@ -16,11 +16,13 @@ type Booking = {
   createdAt?: string;
   payment: { escrowStatus: string; amount: string | number; commission: string | number } | null;
   service: { title: string } | null;
-  user: { name: string };
+  user: { name: string; role?: string };
   artisan: { user: { name: string } };
 };
 
-type StatusFilter = 'all' | 'active' | 'held' | 'completed' | 'disputed';
+type StatusFilter = 'all' | 'active' | 'held' | 'completed' | 'disputed' | 'by_providers';
+
+const bookedByProvider = (b: Booking) => b.user.role === 'artisan';
 
 export default function AdminBookingsPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -43,12 +45,14 @@ export default function AdminBookingsPage() {
   const completedCount = bookings.filter((b) => b.status === 'completed').length;
   const disputedCount = bookings.filter((b) => b.status === 'disputed').length;
   const heldCount = bookings.filter((b) => b.payment?.escrowStatus === 'held').length;
+  const providerBookingCount = bookings.filter(bookedByProvider).length;
 
   const visible = useMemo(() => {
     if (filter === 'active') return bookings.filter((b) => !['completed', 'cancelled'].includes(b.status));
     if (filter === 'held') return bookings.filter((b) => b.payment?.escrowStatus === 'held');
     if (filter === 'completed') return bookings.filter((b) => b.status === 'completed');
     if (filter === 'disputed') return bookings.filter((b) => b.status === 'disputed');
+    if (filter === 'by_providers') return bookings.filter(bookedByProvider);
     return bookings;
   }, [bookings, filter]);
   const pager = usePagination(visible, { resetKey: filter });
@@ -59,6 +63,7 @@ export default function AdminBookingsPage() {
     { id: 'held', label: 'Escrow held', count: heldCount },
     { id: 'completed', label: 'Completed', count: completedCount },
     { id: 'disputed', label: 'Disputed', count: disputedCount },
+    { id: 'by_providers', label: 'Booked by providers', count: providerBookingCount },
   ];
 
   return (
@@ -104,7 +109,7 @@ export default function AdminBookingsPage() {
             <table className="w-full min-w-[860px] text-left">
               <thead>
                 <tr className="border-b border-border bg-muted/40">
-                  {['Service', 'Customer', 'Artisan', 'Status', 'Escrow', 'Commission'].map((h) => (
+                  {['Service', 'Booked by', 'Service provider', 'Status', 'Escrow', 'Commission'].map((h) => (
                     <th
                       key={h}
                       className="px-5 py-3.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground"
@@ -120,7 +125,12 @@ export default function AdminBookingsPage() {
                     <td className="px-5 py-4 font-semibold text-foreground text-sm">
                       {booking.service?.title || 'Custom job'}
                     </td>
-                    <td className="px-5 py-4 text-sm text-muted-foreground">{booking.user.name}</td>
+                    <td className="px-5 py-4 text-sm text-muted-foreground">
+                      <span className="inline-flex items-center gap-2">
+                        {booking.user.name}
+                        {bookedByProvider(booking) && <StatusBadge tone="primary">Provider</StatusBadge>}
+                      </span>
+                    </td>
                     <td className="px-5 py-4 text-sm text-muted-foreground">{booking.artisan.user.name}</td>
                     <td className="px-5 py-4">
                       <StatusBadge tone={bookingStatusTone(booking.status)}>

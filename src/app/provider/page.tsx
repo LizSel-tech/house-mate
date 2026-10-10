@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import Icon from '@/components/ui/AppIcon';
 import { BarChart, LineChart } from '@/components/admin/Charts';
+import { categoryLabel } from '@/lib/categories';
 
 type Booking = {
   id: string;
@@ -62,18 +63,27 @@ export default function ProviderDashboardPage() {
   const [trade, setTrade] = useState('');
   const [serviceCount, setServiceCount] = useState(0);
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [rating, setRating] = useState({ average: 0, total: 0 });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const load = async () => {
       setLoading(true);
       try {
-        const [meRes, verifyRes, servicesRes, bookRes] = await Promise.all([
+        const [meRes, verifyRes, servicesRes, bookRes, reviewsRes] = await Promise.all([
           fetch('/api/auth/me'),
           fetch('/api/provider/verification'),
           fetch('/api/provider/services'),
           fetch('/api/bookings'),
+          fetch('/api/provider/reviews'),
         ]);
+        const reviewData = await reviewsRes.json().catch(() => ({}));
+        if (reviewsRes.ok && reviewData.summary) {
+          setRating({
+            average: Number(reviewData.summary.averageRating || 0),
+            total: Number(reviewData.summary.total || 0),
+          });
+        }
         const me = await meRes.json().catch(() => ({}));
         const verify = await verifyRes.json().catch(() => ({}));
         const services = await servicesRes.json().catch(() => ({}));
@@ -206,8 +216,8 @@ export default function ProviderDashboardPage() {
             Hello{name ? `, ${name}` : ''}
           </h1>
           <p className="mt-1.5 text-sm text-muted-foreground max-w-xl">
-            {trade ? `${trade.charAt(0).toUpperCase()}${trade.slice(1)} · ` : ''}
-            Track requests, jobs, and earnings on Fixora.
+            {trade ? `${categoryLabel(trade)} · ` : ''}
+            Track requests, jobs, and earnings on Craftviva.
           </p>
           <span
             className={`inline-flex mt-3 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${verifyClass(verificationStatus)}`}
@@ -225,7 +235,7 @@ export default function ProviderDashboardPage() {
         </Link>
       </div>
 
-      <div className="grid sm:grid-cols-2 gap-3">
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
         <Link
           href="/provider/jobs"
           className="rounded-2xl border border-border bg-card p-5 hover:border-primary/35 transition-colors"
@@ -262,6 +272,28 @@ export default function ProviderDashboardPage() {
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
             {loading ? '…' : `${formatGhs(stats.released)} released to date`}
+          </p>
+        </Link>
+        <Link
+          href="/provider/reviews"
+          className="rounded-2xl border border-border bg-card p-5 hover:border-primary/35 transition-colors sm:col-span-2 lg:col-span-1"
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center">
+              <Icon name="StarIcon" variant="solid" size={18} />
+            </div>
+            <span className="text-[10px] font-bold uppercase tracking-widest text-primary">Open</span>
+          </div>
+          <p className="mt-3 text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Rating</p>
+          <p className="mt-1 text-3xl font-extrabold text-foreground tabular-nums">
+            {loading ? '…' : rating.total ? `${rating.average.toFixed(1)} ★` : '—'}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {loading
+              ? '…'
+              : rating.total
+                ? `From ${rating.total} client review${rating.total === 1 ? '' : 's'}`
+                : 'No reviews yet'}
           </p>
         </Link>
       </div>

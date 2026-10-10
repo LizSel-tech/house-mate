@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Icon from '@/components/ui/AppIcon';
 import Pagination, { usePagination } from '@/components/ui/Pagination';
+import { categoryLabel } from '@/lib/categories';
 import {
   AdminPageHeader,
   StatusBadge,
@@ -26,14 +27,16 @@ type UserRow = {
     averageRating: string | number;
     subscriptionStatus: string;
   } | null;
+  bookingsMade?: number;
+  jobsReceived?: number;
 };
 
 type Summary = { all: number; user: number; artisan: number; admin: number };
 
 const FILTERS: { id: RoleFilter; label: string }[] = [
   { id: 'all', label: 'All' },
-  { id: 'user', label: 'Customers' },
-  { id: 'artisan', label: 'Artisans' },
+  { id: 'user', label: 'Clients' },
+  { id: 'artisan', label: 'Service providers' },
   { id: 'admin', label: 'Admins' },
 ];
 
@@ -71,6 +74,7 @@ export default function AdminUsersPage() {
   const [summary, setSummary] = useState<Summary>({ all: 0, user: 0, artisan: 0, admin: 0 });
   const [role, setRole] = useState<RoleFilter>('all');
   const [query, setQuery] = useState('');
+  const [onlyProviderBookers, setOnlyProviderBookers] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
 
@@ -97,10 +101,16 @@ export default function AdminUsersPage() {
     load(role);
   }, [role, load]);
 
+  const providerBookers = useMemo(
+    () => users.filter((u) => u.role === 'artisan' && Number(u.bookingsMade || 0) > 0),
+    [users],
+  );
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return users;
-    return users.filter(
+    const base = onlyProviderBookers ? providerBookers : users;
+    if (!q) return base;
+    return base.filter(
       (u) =>
         u.name.toLowerCase().includes(q) ||
         u.phone.toLowerCase().includes(q) ||
@@ -108,14 +118,14 @@ export default function AdminUsersPage() {
         (u.artisanProfile?.trade || '').toLowerCase().includes(q) ||
         (u.location || '').toLowerCase().includes(q),
     );
-  }, [users, query]);
-  const pager = usePagination(filtered, { resetKey: `${role}|${query}` });
+  }, [users, providerBookers, onlyProviderBookers, query]);
+  const pager = usePagination(filtered, { resetKey: `${role}|${query}|${onlyProviderBookers}` });
 
   return (
     <div className="space-y-6">
       <AdminPageHeader
         eyebrow="Directory"
-        title="Users & artisans"
+        title="Users & service providers"
         description="Browse and filter everyone on the platform by account type."
         actions={
           <div className="relative w-full sm:w-72">
@@ -154,6 +164,20 @@ export default function AdminUsersPage() {
             </button>
           );
         })}
+        {(role === 'all' || role === 'artisan') && (
+          <button
+            type="button"
+            onClick={() => setOnlyProviderBookers((v) => !v)}
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold uppercase tracking-widest border border-dashed transition-colors ${
+              onlyProviderBookers
+                ? 'bg-primary/10 text-primary border-primary'
+                : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/20'
+            }`}
+          >
+            Providers who book
+            <span className="ml-1.5 opacity-60">({providerBookers.length})</span>
+          </button>
+        )}
       </div>
 
       {error && <p className="text-sm text-red-600">{error}</p>}
@@ -209,7 +233,7 @@ export default function AdminUsersPage() {
                     </td>
                     <td className="px-5 py-4">
                       <StatusBadge tone={roleTone(u.role)}>
-                        {u.role === 'user' ? 'customer' : u.role}
+                        {u.role === 'user' ? 'client' : u.role === 'artisan' ? 'provider' : u.role}
                       </StatusBadge>
                     </td>
                     <td className="px-5 py-4">
@@ -221,15 +245,24 @@ export default function AdminUsersPage() {
                     <td className="px-5 py-4">
                       {u.artisanProfile ? (
                         <div>
-                          <p className="text-sm font-medium text-foreground capitalize">
-                            {u.artisanProfile.trade}
+                          <p className="text-sm font-medium text-foreground">
+                            {categoryLabel(u.artisanProfile.trade) || 'No category yet'}
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            {u.artisanProfile.jobsCompleted} jobs ·{' '}
+                            {u.jobsReceived ?? u.artisanProfile.jobsCompleted} jobs received ·{' '}
                             {Number(u.artisanProfile.averageRating).toFixed(1)}★ ·{' '}
                             {u.artisanProfile.subscriptionStatus}
                           </p>
+                          {Number(u.bookingsMade || 0) > 0 && (
+                            <p className="text-xs font-semibold text-primary mt-0.5">
+                              {u.bookingsMade} booking{u.bookingsMade === 1 ? '' : 's'} made as a client
+                            </p>
+                          )}
                         </div>
+                      ) : u.role === 'user' ? (
+                        <span className="text-sm text-muted-foreground">
+                          {u.bookingsMade ?? 0} booking{u.bookingsMade === 1 ? '' : 's'} made
+                        </span>
                       ) : (
                         <span className="text-sm text-muted-foreground">—</span>
                       )}

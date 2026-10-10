@@ -99,7 +99,7 @@ export default function ContactSection() {
                   </div>
                   <h3 className="text-2xl font-bold text-foreground">Message Received!</h3>
                   <p className="text-muted-foreground max-w-sm leading-relaxed">
-                    Thanks for reaching out. Fixora will call or text you back within the hour during business hours.
+                    Thanks for reaching out. Craftviva will call or text you back within the hour during business hours.
                   </p>
                   <button
                     onClick={() => setSubmitted(false)}
@@ -253,7 +253,7 @@ export default function ContactSection() {
                 <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-4">Credentials</p>
                 <div className="flex flex-col gap-3">
                   {[
-                    { icon: 'ShieldCheckIcon', text: 'Ghana Card–verified artisans' },
+                    { icon: 'ShieldCheckIcon', text: 'Ghana Card–verified service providers' },
                     { icon: 'DocumentCheckIcon', text: 'Escrow-protected payments' },
                     { icon: 'StarIcon', text: 'Rated by Ghana households' },
                   ].map((badge) => (

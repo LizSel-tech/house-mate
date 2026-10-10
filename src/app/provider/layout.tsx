@@ -3,11 +3,14 @@ import PortalShell, { type PortalNavItem } from '@/components/portals/PortalShel
 import { getSession } from '@/lib/auth/session';
 
 const navItems: PortalNavItem[] = [
-  { href: '/provider', label: 'Dashboard', icon: 'HomeIcon' },
+  { href: '/provider', label: 'Dashboard', icon: 'Squares2X2Icon' },
+  { href: '/provider/home', label: 'Home page', icon: 'HomeIcon' },
   { href: '/provider/jobs', label: 'Job requests', icon: 'BriefcaseIcon' },
+  { href: '/provider/bookings', label: 'My bookings', icon: 'CalendarDaysIcon' },
   { href: '/provider/services', label: 'Services', icon: 'WrenchScrewdriverIcon' },
   { href: '/provider/verification', label: 'Verification', icon: 'ShieldCheckIcon' },
   { href: '/provider/earnings', label: 'Earnings', icon: 'BanknotesIcon' },
+  { href: '/provider/reviews', label: 'My reviews', icon: 'StarIcon' },
   { href: '/provider/notifications', label: 'Notifications', icon: 'BellAlertIcon' },
   { href: '/provider/settings', label: 'Settings', icon: 'Cog6ToothIcon' },
   { href: '/provider/profile', label: 'Profile', icon: 'UserCircleIcon' },

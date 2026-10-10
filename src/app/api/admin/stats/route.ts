@@ -57,6 +57,7 @@ export async function GET() {
     bookingsLast14,
     usersLast12Months,
     bookingsLast12Months,
+    providerBookingsRow,
   ] = await Promise.all([
     query<{ role: UserRole; count: string }>(
       `SELECT role, count(*)::text AS count FROM users GROUP BY role`,
@@ -84,7 +85,7 @@ export async function GET() {
     ),
     queryData(
       `SELECT to_jsonb(b) || jsonb_build_object(
-         'user', jsonb_build_object('name', u.name),
+         'user', jsonb_build_object('name', u.name, 'role', u.role),
          'artisan', jsonb_build_object('user', jsonb_build_object('name', au.name)),
          'payment', CASE WHEN p.id IS NULL THEN NULL ELSE jsonb_build_object(
            'amount', p.amount, 'escrow_status', p.escrow_status
@@ -113,6 +114,15 @@ export async function GET() {
     query<{ createdAt: Date }>(
       `SELECT created_at FROM bookings WHERE created_at >= $1 ORDER BY created_at ASC`,
       [sinceMonth],
+    ),
+    queryOne<{ bookings: string; bookers: string; escrow: string }>(
+      `SELECT count(*)::text AS bookings,
+              count(DISTINCT b.user_id)::text AS bookers,
+              coalesce(sum(p.amount) FILTER (WHERE p.escrow_status IN ('held', 'released')), 0)::text AS escrow
+         FROM bookings b
+         JOIN users u ON u.id = b.user_id
+         LEFT JOIN payments p ON p.booking_id = b.id
+        WHERE u.role = 'artisan'`,
     ),
   ]);
 
@@ -191,11 +201,14 @@ export async function GET() {
       activeBookings,
       totalBookings: Object.values(bookingCounts).reduce((a, b) => a + b, 0),
       heldEscrow: Number(heldEscrow?.amount || 0),
+      providerBookings: Number(providerBookingsRow?.bookings || 0),
+      providersWhoBook: Number(providerBookingsRow?.bookers || 0),
+      providerBookingsEscrow: Number(providerBookingsRow?.escrow || 0),
     },
     charts: {
       usersByRole: [
-        { label: 'Customers', value: roleCounts.user, color: '#D97706' },
-        { label: 'Artisans', value: roleCounts.artisan, color: '#292524' },
+        { label: 'Clients', value: roleCounts.user, color: '#D97706' },
+        { label: 'Service providers', value: roleCounts.artisan, color: '#292524' },
         { label: 'Admins', value: roleCounts.admin, color: '#78716C' },
       ],
       bookingsByStatus: Object.entries(bookingCounts).map(([label, value]) => ({
@@ -219,6 +232,7 @@ export async function GET() {
         status: b.status,
         createdAt: b.createdAt,
         customer: (b.user as { name: string }).name,
+        customerIsProvider: (b.user as { role?: string }).role === 'artisan',
         artisan: ((b.artisan as { user: { name: string } }).user).name,
         amount: b.payment ? Number((b.payment as { amount: string | number }).amount) : null,
         escrowStatus: (b.payment as { escrowStatus?: string } | null)?.escrowStatus || null,

@@ -33,6 +33,9 @@ type StatsPayload = {
     activeBookings: number;
     totalBookings: number;
     heldEscrow: number;
+    providerBookings?: number;
+    providersWhoBook?: number;
+    providerBookingsEscrow?: number;
   };
   charts: {
     usersByRole: { label: string; value: number; color: string }[];
@@ -50,6 +53,7 @@ type StatsPayload = {
       status: string;
       createdAt: string;
       customer: string;
+      customerIsProvider?: boolean;
       artisan: string;
       amount: number | null;
       escrowStatus: string | null;
@@ -58,7 +62,8 @@ type StatsPayload = {
 };
 
 function roleLabel(role: string) {
-  if (role === 'user') return 'customer';
+  if (role === 'user') return 'client';
+  if (role === 'artisan') return 'service provider';
   return role;
 }
 
@@ -174,16 +179,16 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 xl:grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
         <KpiCard
           label="Total users"
           value={loading ? '…' : String(kpis?.totalUsers ?? 0)}
-          hint={`${kpis?.customers ?? 0} customers · ${kpis?.artisans ?? 0} artisans · ${kpis?.admins ?? 0} admins`}
+          hint={`${kpis?.customers ?? 0} clients · ${kpis?.artisans ?? 0} providers (${kpis?.providersWhoBook ?? 0} also book) · ${kpis?.admins ?? 0} admins`}
           icon="UsersIcon"
           href="/admin/users"
         />
         <KpiCard
-          label="Artisans live"
+          label="Providers live"
           value={loading ? '…' : String(kpis?.artisansApproved ?? 0)}
           hint={`${kpis?.artisansPending ?? 0} pending verification`}
           icon="WrenchScrewdriverIcon"
@@ -216,6 +221,13 @@ export default function AdminDashboardPage() {
           hint="Awaiting confirmation"
           icon="CreditCardIcon"
           href="/admin/payments"
+        />
+        <KpiCard
+          label="Provider bookings"
+          value={loading ? '…' : String(kpis?.providerBookings ?? 0)}
+          hint={`Providers booking providers · ${formatGhs(kpis?.providerBookingsEscrow ?? 0)} paid`}
+          icon="ArrowsRightLeftIcon"
+          href="/admin/bookings"
         />
       </div>
 
@@ -263,7 +275,7 @@ export default function AdminDashboardPage() {
             <HorizontalBars data={stats.charts.bookingsByStatus} />
           )}
         </Panel>
-        <Panel title="Artisan verification" description="Approval funnel">
+        <Panel title="Provider verification" description="Approval funnel">
           {loading || !stats ? (
             <div className="h-36 rounded-xl bg-muted/50 animate-pulse" />
           ) : (
@@ -351,7 +363,13 @@ export default function AdminDashboardPage() {
                   <tr key={b.id} className="border-b border-border last:border-0">
                     <td className="px-5 py-3">
                       <p className="text-sm font-semibold text-foreground">
-                        {b.customer} → {b.artisan}
+                        {b.customer}
+                        {b.customerIsProvider && (
+                          <span className="ml-1.5 text-[10px] font-bold uppercase tracking-widest text-primary">
+                            (Provider)
+                          </span>
+                        )}{' '}
+                        → {b.artisan}
                       </p>
                       {b.escrowStatus && (
                         <p className="text-[11px] text-muted-foreground mt-0.5">Escrow {b.escrowStatus}</p>

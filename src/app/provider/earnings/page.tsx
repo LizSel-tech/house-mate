@@ -216,7 +216,7 @@ export default function ProviderEarningsPage() {
           {[
             'Customer pays into escrow after you accept the job.',
             'You complete the work and mark it done.',
-            'Customer confirms — Fixora releases your net amount (minus commission).',
+            'Customer confirms — Craftviva releases your net amount (minus commission).',
           ].map((text, i) => (
             <li key={text} className="flex gap-3">
               <span className="w-8 h-8 rounded-xl bg-primary text-primary-foreground flex items-center justify-center text-sm font-extrabold shrink-0">

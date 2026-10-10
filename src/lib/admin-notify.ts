@@ -47,11 +47,11 @@ export async function ensureDefaultPaymentMethods() {
     `INSERT INTO payment_methods
       (name, type, account_name, account_number, bank_name, instructions, sort_order, is_active)
      VALUES
-      ('MTN MoMo', 'mtn_momo', 'Fixora Platform', '0240000000', NULL,
+      ('MTN MoMo', 'mtn_momo', 'Craftviva Platform', '0240000000', NULL,
        'Send the signup fee via MTN Mobile Money, then enter the transaction ID.', 1, true),
-      ('Telecel Cash', 'telecel_cash', 'Fixora Platform', '0200000000', NULL,
+      ('Telecel Cash', 'telecel_cash', 'Craftviva Platform', '0200000000', NULL,
        'Send the signup fee via Telecel Cash, then enter the transaction ID.', 2, true),
-      ('Bank transfer', 'bank_transfer', 'Fixora Ghana Ltd', '0123456789012', 'GCB Bank',
+      ('Bank transfer', 'bank_transfer', 'Craftviva Ghana Ltd', '0123456789012', 'GCB Bank',
        'Transfer the signup fee and use your phone number as the narration.', 3, true)`,
   );
 }

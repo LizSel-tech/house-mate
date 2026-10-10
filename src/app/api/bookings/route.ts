@@ -5,11 +5,13 @@ import { BOOKING_DATA_SQL } from '@/lib/db/bookings';
 import { notifyArtisan } from '@/lib/notify';
 import type { ArtisanProfile, Service } from '@/types/db';
 
-export async function GET() {
+export async function GET(request: Request) {
   const { user, error } = await requireSession(['user', 'artisan', 'admin']);
   if (error || !user) return error!;
 
-  if (user.role === 'user') {
+  const asCustomer = new URL(request.url).searchParams.get('as') === 'customer';
+
+  if (user.role === 'user' || (user.role === 'artisan' && asCustomer)) {
     const bookings = await queryData(
       `${BOOKING_DATA_SQL} WHERE b.user_id = $1 ORDER BY b.created_at DESC`,
       [user.id],
@@ -23,7 +25,7 @@ export async function GET() {
       [user.id],
     );
     if (!profile) {
-      return NextResponse.json({ error: 'Artisan profile not found.' }, { status: 404 });
+      return NextResponse.json({ error: 'Service provider profile not found.' }, { status: 404 });
     }
     const bookings = await queryData(
       `${BOOKING_DATA_SQL} WHERE b.artisan_id = $1 ORDER BY b.created_at DESC`,
@@ -39,7 +41,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const { user, error } = await requireSession(['user']);
+  const { user, error } = await requireSession(['user', 'artisan']);
   if (error || !user) return error!;
 
   const body = (await request.json()) as {
@@ -51,7 +53,7 @@ export async function POST(request: Request) {
   };
 
   if (!body.artisanId || !body.serviceId) {
-    return NextResponse.json({ error: 'Artisan and service are required.' }, { status: 400 });
+    return NextResponse.json({ error: 'Service provider and service are required.' }, { status: 400 });
   }
 
   const artisan = await queryOne<ArtisanProfile>(
@@ -59,7 +61,10 @@ export async function POST(request: Request) {
     [body.artisanId],
   );
   if (!artisan) {
-    return NextResponse.json({ error: 'Verified artisan not found.' }, { status: 404 });
+    return NextResponse.json({ error: 'Verified service provider not found.' }, { status: 404 });
+  }
+  if (artisan.userId === user.id) {
+    return NextResponse.json({ error: "You can't book your own services." }, { status: 400 });
   }
 
   const service = await queryOne<Service>(

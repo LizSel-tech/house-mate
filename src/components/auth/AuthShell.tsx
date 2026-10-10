@@ -23,7 +23,7 @@ export default function AuthShell({
         <div className="relative z-10">
           <Link href="/" className="inline-flex items-center gap-2.5">
             <AppLogo size={36} />
-            <span className="font-display text-xl font-bold tracking-tight">Fixora</span>
+            <span className="font-display text-xl font-bold tracking-tight">Craftviva</span>
           </Link>
         </div>
 
@@ -32,15 +32,15 @@ export default function AuthShell({
             Trusted home services
           </p>
           <h2 className="text-4xl font-extrabold tracking-tight leading-tight">
-            Book verified artisans.
+            Book verified service providers.
             <span className="text-primary"> Pay with escrow.</span>
           </h2>
           <p className="mt-4 text-secondary-foreground/70 leading-relaxed">
-            Fixora connects Ghana households with skilled providers — identity-checked, review-rated, and paid only when work is confirmed.
+            Craftviva connects Ghana households with skilled providers — identity-checked, review-rated, and paid only when work is confirmed.
           </p>
           <ul className="mt-8 space-y-3 text-sm text-secondary-foreground/80">
             {[
-              'Ghana Card verification for artisans',
+              'Ghana Card verification for service providers',
               'Escrow holds funds until you confirm',
               'One login for customers and providers',
             ].map((item) => (
@@ -54,14 +54,14 @@ export default function AuthShell({
           </ul>
         </div>
 
-        <p className="relative z-10 text-xs text-secondary-foreground/40">© {new Date().getFullYear()} Fixora</p>
+        <p className="relative z-10 text-xs text-secondary-foreground/40">© {new Date().getFullYear()} Craftviva</p>
       </aside>
 
       <div className="flex flex-col min-h-screen lg:h-screen lg:overflow-y-auto">
         <header className="px-5 sm:px-8 py-5 flex items-center justify-between lg:justify-end shrink-0">
           <Link href="/" className="flex lg:hidden items-center gap-2.5">
             <AppLogo size={32} />
-            <span className="font-display text-lg font-bold text-foreground tracking-tight">Fixora</span>
+            <span className="font-display text-lg font-bold text-foreground tracking-tight">Craftviva</span>
           </Link>
           <Link
             href="/"

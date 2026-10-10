@@ -17,7 +17,10 @@ export async function GET(request: Request) {
 
   const users = await queryData(
     `SELECT to_jsonb(u) || jsonb_build_object(
-       'artisan_profile', CASE WHEN ap.id IS NULL THEN NULL ELSE to_jsonb(ap) END
+       'artisan_profile', CASE WHEN ap.id IS NULL THEN NULL ELSE to_jsonb(ap) END,
+       'bookings_made', (SELECT count(*) FROM bookings bm WHERE bm.user_id = u.id),
+       'jobs_received', CASE WHEN ap.id IS NULL THEN 0
+         ELSE (SELECT count(*) FROM bookings bj WHERE bj.artisan_id = ap.id) END
      ) AS data
      FROM users u
      LEFT JOIN artisan_profiles ap ON ap.user_id = u.id

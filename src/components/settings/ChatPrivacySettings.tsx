@@ -89,7 +89,7 @@ export default function ChatPrivacySettings({
         <div className="px-5 py-4 border-b border-border">
           <h2 className="text-base font-bold text-foreground">Chat privacy</h2>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Control whether Fixora admins can review your conversations
+            Control whether Craftviva admins can review your conversations
           </p>
         </div>
         <div className="p-5 space-y-4">
@@ -101,7 +101,7 @@ export default function ChatPrivacySettings({
               <div className="min-w-0">
                 <p className="font-semibold text-foreground">Allow admin chat review</p>
                 <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
-                  When enabled, Fixora admins can view chats between you and the other party for safety
+                  When enabled, Craftviva admins can view chats between you and the other party for safety
                   and dispute resolution. Admins only see a conversation if both participants allow it.
                 </p>
                 <p className="text-xs text-muted-foreground mt-2">
