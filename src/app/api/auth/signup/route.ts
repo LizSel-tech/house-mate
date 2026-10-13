@@ -4,7 +4,13 @@ import type { SignupPayload } from '@/types/auth';
 import { normalizePhone } from '@/lib/auth/session-token';
 import { notifyAdmin, getOrCreatePlatformSettings } from '@/lib/admin-notify';
 import { isDatabaseConfigured, query, queryOne, withTransaction } from '@/lib/db';
-import { PaystackError, initializeTransaction, isPaystackConfigured } from '@/lib/paystack';
+import { isMomoProvider, maskMomo, normalizeGhanaMomo, type MomoProvider } from '@/lib/momo';
+import {
+  PaystackError,
+  chargeMobileMoney,
+  initializeTransaction,
+  isPaystackConfigured,
+} from '@/lib/paystack';
 import { saveUpload } from '@/lib/uploads';
 import type { PaymentMethod, SignupPayment, User } from '@/types/db';
 
@@ -32,7 +38,10 @@ export async function POST(request: Request) {
     const phoneRaw = String(form.get('phone') || '').trim();
     const emailRaw = String(form.get('email') || '').trim();
     const role = String(form.get('role') || '').trim() as SignupPayload['role'];
-    const payWith = String(form.get('payWith') || 'manual') === 'paystack' ? 'paystack' : 'manual';
+    const payWithRaw = String(form.get('payWith') || 'manual');
+    const payWith = payWithRaw === 'paystack' || payWithRaw === 'momo' ? payWithRaw : 'manual';
+    const momoProvider = String(form.get('momoProvider') || '').trim();
+    const momoPhone = normalizeGhanaMomo(String(form.get('momoPhone') || '').trim() || phoneRaw);
     const methodId = String(form.get('methodId') || '').trim();
     const reference = String(form.get('reference') || '').trim();
     const proof = form.get('proof');
@@ -52,11 +61,22 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
-    if (payWith === 'paystack' && !isPaystackConfigured()) {
+    if (payWith !== 'manual' && !isPaystackConfigured()) {
       return NextResponse.json(
         { error: 'Online payment is not available right now. Pay manually and upload your proof.' },
         { status: 400 },
       );
+    }
+    if (payWith === 'momo') {
+      if (!isMomoProvider(momoProvider)) {
+        return NextResponse.json({ error: 'Choose your mobile money network.' }, { status: 400 });
+      }
+      if (!momoPhone) {
+        return NextResponse.json(
+          { error: 'Enter a valid 10-digit Ghana mobile money number, e.g. 024 123 4567.' },
+          { status: 400 },
+        );
+      }
     }
     if (payWith === 'manual') {
       if (!methodId || !reference) {
@@ -200,6 +220,50 @@ export async function POST(request: Request) {
           [paystackRef, err instanceof Error ? err.message : 'Initialize failed'],
         );
         const message = err instanceof PaystackError ? err.message : 'Could not start the payment.';
+        return NextResponse.json({ error: message }, { status: 502 });
+      }
+    }
+
+    if (payWith === 'momo') {
+      const paystackRef = `cv_su_${user.id.slice(0, 8)}_${Date.now()}_${randomBytes(3).toString('hex')}`;
+      await query(
+        `INSERT INTO paystack_transactions (reference, purpose, user_id, amount, commission, channel)
+         VALUES ($1, 'signup', $2, $3, 0, 'mobile_money')`,
+        [paystackRef, user.id, amount],
+      );
+      try {
+        const charge = await chargeMobileMoney({
+          email,
+          amountGhs: amount,
+          reference: paystackRef,
+          phone: momoPhone!,
+          provider: momoProvider as MomoProvider,
+          metadata: { purpose: 'signup', userId: user.id, role },
+        });
+        if (charge.status === 'failed') {
+          const reason = charge.message || charge.gateway_response || 'The mobile money network declined the request.';
+          await query(
+            `UPDATE paystack_transactions SET status = 'failed', gateway_response = $2, updated_at = now() WHERE reference = $1`,
+            [paystackRef, reason],
+          );
+          return NextResponse.json({ error: reason }, { status: 402 });
+        }
+        return NextResponse.json({
+          ok: true,
+          mode: 'momo',
+          reference: paystackRef,
+          status: charge.status,
+          displayText: charge.display_text || null,
+          momoPhone: maskMomo(momoPhone!),
+          phone,
+          amount,
+        });
+      } catch (err) {
+        await query(
+          `UPDATE paystack_transactions SET status = 'failed', gateway_response = $2, updated_at = now() WHERE reference = $1`,
+          [paystackRef, err instanceof Error ? err.message : 'Charge failed'],
+        );
+        const message = err instanceof PaystackError ? err.message : 'Could not send the payment prompt.';
         return NextResponse.json({ error: message }, { status: 502 });
       }
     }

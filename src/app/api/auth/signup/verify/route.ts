@@ -4,6 +4,10 @@ import { markSignupPaid } from '@/lib/payments';
 import { PaystackError, verifyTransaction } from '@/lib/paystack';
 import type { PaystackTransaction } from '@/types/db';
 
+const WAITING_STATUSES = new Set(['ongoing', 'pending', 'processing', 'queued', 'pay_offline', 'send_otp']);
+/** Networks give the customer 180 seconds to approve; allow a little slack before treating it as abandoned. */
+const MOMO_PROMPT_WINDOW_MS = 210_000;
+
 /**
  * Called by the signup page after the Paystack popup closes. No session exists yet; the reference alone is
  * enough because the outcome comes from Paystack and only activates the account that started the payment.
@@ -21,7 +25,12 @@ export async function POST(request: Request) {
 
   try {
     const charge = await verifyTransaction(reference);
-    if (charge.status === 'ongoing' || charge.status === 'pending') {
+    const promptStillOpen =
+      record.channel === 'mobile_money' &&
+      record.status === 'pending' &&
+      charge.status === 'abandoned' &&
+      Date.now() - new Date(record.createdAt).getTime() < MOMO_PROMPT_WINDOW_MS;
+    if (WAITING_STATUSES.has(charge.status) || promptStillOpen) {
       return NextResponse.json({
         pending: true,
         message: 'Payment is still processing. Approve the prompt on your phone; this page will update once Paystack confirms it.',

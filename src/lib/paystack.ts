@@ -83,6 +83,44 @@ export function initializeTransaction(input: {
   );
 }
 
+export type ChargeResponse = {
+  reference: string;
+  status: 'pay_offline' | 'send_otp' | 'pending' | 'success' | 'failed' | string;
+  display_text?: string | null;
+  message?: string | null;
+  gateway_response?: string | null;
+};
+
+/** Sends a payment prompt straight to the customer's mobile money wallet (no Paystack popup). */
+export function chargeMobileMoney(input: {
+  email: string;
+  amountGhs: number;
+  reference: string;
+  phone: string;
+  provider: 'mtn' | 'vod' | 'atl';
+  metadata: Record<string, unknown>;
+}) {
+  return paystack<ChargeResponse>('/charge', {
+    method: 'POST',
+    body: JSON.stringify({
+      email: input.email,
+      amount: toPesewas(input.amountGhs),
+      currency: 'GHS',
+      reference: input.reference,
+      mobile_money: { phone: input.phone, provider: input.provider },
+      metadata: input.metadata,
+    }),
+  });
+}
+
+/** Telecel (and occasionally other networks) asks the customer for a code before sending the prompt. */
+export function submitChargeOtp(reference: string, otp: string) {
+  return paystack<ChargeResponse>('/charge/submit_otp', {
+    method: 'POST',
+    body: JSON.stringify({ reference, otp }),
+  });
+}
+
 export function verifyTransaction(reference: string) {
   return paystack<PaystackTransactionData>(
     `/transaction/verify/${encodeURIComponent(reference)}`,
