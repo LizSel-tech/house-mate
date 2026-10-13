@@ -17,14 +17,15 @@ type Payment = {
   id: string;
   amount: string | number;
   reference: string;
-  proofUrl: string;
+  proofUrl: string | null;
+  provider: 'manual' | 'paystack';
   status: string;
   role: string;
   rejectionReason: string | null;
   createdAt: string;
   reviewedAt: string | null;
   user: { name: string; phone: string; email: string | null; role: string };
-  method: { name: string; type: string };
+  method: { name: string; type: string } | null;
   reviewedBy: { name: string } | null;
 };
 
@@ -80,7 +81,11 @@ export default function AdminPaymentsPage() {
               : 'Payment confirmed. OTP emailed to the user.',
         );
       } else {
-        setMessage('Payment rejected.');
+        setMessage(
+          data.warning
+            ? `Payment rejected. ${data.warning}`
+            : 'Payment rejected. The user was emailed a link to resubmit.',
+        );
       }
       setModal(null);
       setRejectReason('');
@@ -108,7 +113,7 @@ export default function AdminPaymentsPage() {
       <AdminPageHeader
         eyebrow="Registrations"
         title="Signup payments"
-        description="Confirm payment proofs to activate accounts and auto-send login OTPs."
+        description="Confirm manual payment proofs to activate accounts. Paystack payments are confirmed automatically."
       />
 
       <div className="grid sm:grid-cols-2 gap-3">
@@ -190,7 +195,13 @@ export default function AdminPaymentsPage() {
                     <td className="px-4 py-3.5">
                       <StatusBadge tone="neutral">{p.role}</StatusBadge>
                     </td>
-                    <td className="px-4 py-3.5 text-sm text-muted-foreground">{p.method.name}</td>
+                    <td className="px-4 py-3.5 text-sm text-muted-foreground">
+                      {p.provider === 'paystack' ? (
+                        <StatusBadge tone="primary">Paystack</StatusBadge>
+                      ) : (
+                        p.method?.name ?? '—'
+                      )}
+                    </td>
                     <td className="px-4 py-3.5 text-sm font-semibold text-foreground whitespace-nowrap">
                       {formatGhs(Number(p.amount))}
                     </td>
@@ -208,12 +219,16 @@ export default function AdminPaymentsPage() {
                     </td>
                     <td className="px-4 py-3.5">
                       <div className="flex items-center gap-1.5">
-                        <IconActionButton
-                          href={p.proofUrl}
-                          icon="DocumentTextIcon"
-                          label="View proof"
-                          tone="neutral"
-                        />
+                        {p.proofUrl ? (
+                          <IconActionButton
+                            href={p.proofUrl}
+                            icon="DocumentTextIcon"
+                            label="View proof"
+                            tone="neutral"
+                          />
+                        ) : (
+                          <span className="text-xs text-muted-foreground">Auto-confirmed</span>
+                        )}
                         {p.status === 'pending' && (
                           <>
                             <IconActionButton
@@ -268,7 +283,7 @@ export default function AdminPaymentsPage() {
           <div className="rounded-xl border border-border bg-muted/40 p-3 text-sm space-y-1">
             <p className="font-semibold text-foreground">{formatGhs(Number(modal.payment.amount))}</p>
             <p className="text-muted-foreground">
-              {modal.payment.method.name} · Ref {modal.payment.reference}
+              {modal.payment.method?.name ?? 'Paystack'} · Ref {modal.payment.reference}
             </p>
           </div>
         )}
@@ -301,7 +316,7 @@ export default function AdminPaymentsPage() {
             value={rejectReason}
             onChange={(e) => setRejectReason(e.target.value)}
             rows={3}
-            placeholder="Shown to the user if provided"
+            placeholder="Emailed to the user with a link to resubmit"
             className="w-full px-3.5 py-2.5 rounded-xl border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
           />
         </label>

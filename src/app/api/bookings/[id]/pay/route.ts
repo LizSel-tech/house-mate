@@ -1,17 +1,16 @@
+import { randomBytes } from 'crypto';
 import { NextResponse } from 'next/server';
 import { requireSession } from '@/lib/auth/require-session';
 import { query, queryDataOne, queryOne } from '@/lib/db';
-import { getBookingParties, notifyUser } from '@/lib/notify';
-import type { Booking, Payment, PlatformSetting } from '@/types/db';
+import {
+  commissionFor,
+  getCommissionRate,
+  recordMockEscrowPayment,
+} from '@/lib/payments';
+import { PaystackError, initializeTransaction, isPaystackConfigured } from '@/lib/paystack';
+import type { Booking, Payment, User } from '@/types/db';
 
-async function getCommissionRate() {
-  const settings = await queryOne<PlatformSetting>(
-    `SELECT * FROM platform_settings ORDER BY updated_at DESC LIMIT 1`,
-  );
-  return settings ? Number(settings.commissionRate) : 12;
-}
-
-/** Pay into escrow (mock Paystack collect for MVP) */
+/** Starts escrow payment: Paystack checkout when configured, otherwise the mock escrow flow. */
 export async function POST(
   _request: Request,
   context: { params: Promise<{ id: string }> },
@@ -45,31 +44,49 @@ export async function POST(
   }
 
   const amount = Number(booking.agreedPrice);
-  const commissionRate = await getCommissionRate();
-  const commission = Number(((amount * commissionRate) / 100).toFixed(2));
-  const reference = `HM_${Date.now()}_${id.slice(0, 8)}`;
 
-  const payment = await queryOne<Payment>(
-    `INSERT INTO payments (booking_id, amount, commission, escrow_status, paystack_reference)
-     VALUES ($1, $2, $3, 'held', $4)
-     RETURNING *`,
-    [id, amount, commission, reference],
-  );
-
-  await query(`UPDATE bookings SET status = 'in_progress' WHERE id = $1`, [id]);
-
-  const parties = await getBookingParties(id);
-  if (parties) {
-    await notifyUser(parties.artisanUserId, {
-      type: 'escrow_paid',
-      title: 'Escrow paid — start work',
-      body: `${parties.customerName} paid GHS ${amount.toFixed(2)} into escrow for "${parties.title}". You can begin the job.`,
-      href: '/provider/jobs',
+  if (!isPaystackConfigured()) {
+    await recordMockEscrowPayment(id, amount);
+    return NextResponse.json({
+      mode: 'mock',
+      message: 'Payment held in escrow (test mode — Paystack is not configured). Funds release when you confirm completion.',
     });
   }
 
-  return NextResponse.json({
-    payment,
-    message: 'Payment held in escrow (mock Paystack). Funds release when you confirm completion.',
-  });
+  const payer = await queryOne<User>(`SELECT * FROM users WHERE id = $1`, [user.id]);
+  const email = payer?.email?.trim() || `${user.phone.replace(/\D/g, '') || user.id}@customers.craftviva.app`;
+  const commission = commissionFor(amount, await getCommissionRate());
+  const reference = `cv_bk_${id.slice(0, 8)}_${Date.now()}_${randomBytes(3).toString('hex')}`;
+
+  await query(
+    `INSERT INTO paystack_transactions (reference, purpose, user_id, booking_id, amount, commission, currency)
+     VALUES ($1, 'booking', $2, $3, $4, $5, 'GHS')`,
+    [reference, user.id, id, amount, commission],
+  );
+
+  try {
+    const init = await initializeTransaction({
+      email,
+      amountGhs: amount,
+      reference,
+      metadata: { bookingId: id, userId: user.id, purpose: 'booking' },
+    });
+    await query(
+      `UPDATE paystack_transactions SET access_code = $2, updated_at = now() WHERE reference = $1`,
+      [reference, init.access_code],
+    );
+    return NextResponse.json({
+      mode: 'paystack',
+      reference,
+      accessCode: init.access_code,
+      authorizationUrl: init.authorization_url,
+    });
+  } catch (err) {
+    await query(
+      `UPDATE paystack_transactions SET status = 'failed', gateway_response = $2, updated_at = now() WHERE reference = $1`,
+      [reference, err instanceof Error ? err.message : 'initialize failed'],
+    );
+    const message = err instanceof PaystackError ? err.message : 'Could not start the payment.';
+    return NextResponse.json({ error: `Paystack: ${message}` }, { status: 502 });
+  }
 }

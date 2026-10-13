@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireSession } from '@/lib/auth/require-session';
+import { requireAdmin } from '@/lib/auth/admin-access';
 import { query, queryData, queryOne } from '@/lib/db';
 import type { UserRole, VerificationStatus } from '@/types/db';
 
@@ -37,7 +37,7 @@ function monthLabel(key: string) {
 }
 
 export async function GET() {
-  const { user, error } = await requireSession(['admin']);
+  const { user, error } = await requireAdmin('dashboard.view');
   if (error || !user) return error!;
 
   const since = daysAgo(13);

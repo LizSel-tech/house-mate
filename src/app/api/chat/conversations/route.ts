@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { adminCan } from '@/lib/auth/admin-access';
 import { requireSession } from '@/lib/auth/require-session';
 import { query, queryData, queryOne } from '@/lib/db';
 import type { ArtisanProfile } from '@/types/db';
@@ -38,6 +39,9 @@ export async function GET() {
   if (error || !user) return error!;
 
   if (user.role === 'admin') {
+    if (!(await adminCan(user.id, 'chat.view'))) {
+      return NextResponse.json({ error: 'Your role does not allow this action.' }, { status: 403 });
+    }
     const conversations = await queryData(
       `${LIST_SQL}
        WHERE coalesce(u.allow_admin_chat_review, true) = true

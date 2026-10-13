@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
-import { requireSession } from '@/lib/auth/require-session';
+import { requireAdmin } from '@/lib/auth/admin-access';
 import { queryData } from '@/lib/db';
 import type { KycVerification } from '@/types/db';
 
 export async function GET() {
-  const { user, error } = await requireSession(['admin']);
+  const { user, error } = await requireAdmin('verifications.manage');
   if (error || !user) return error!;
 
   const [pendingDocs, kycRecords] = await Promise.all([

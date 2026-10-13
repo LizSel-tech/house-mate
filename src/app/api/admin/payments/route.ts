@@ -1,16 +1,18 @@
 import { NextResponse } from 'next/server';
-import { requireSession } from '@/lib/auth/require-session';
+import { requireAdmin } from '@/lib/auth/admin-access';
 import {
   ensureDefaultPaymentMethods,
   notifyAdmin,
 } from '@/lib/admin-notify';
-import { issueOtpToUser } from '@/lib/auth/otp';
+import { normalizePhone } from '@/lib/auth/session-token';
+import { isMailConfigured, sendSignupRejectedEmail } from '@/lib/mail';
 import { notifyUser } from '@/lib/notify';
+import { welcomeActivatedUser } from '@/lib/signup';
 import { query, queryData, queryDataOne, queryOne, withTransaction } from '@/lib/db';
 import type { PaymentMethod, SignupPayment, User } from '@/types/db';
 
 export async function GET() {
-  const { user, error } = await requireSession(['admin']);
+  const { user, error } = await requireAdmin('payments.manage');
   if (error || !user) return error!;
 
   await ensureDefaultPaymentMethods();
@@ -21,12 +23,12 @@ export async function GET() {
          'id', u.id, 'name', u.name, 'phone', u.phone, 'email', u.email,
          'role', u.role, 'account_status', u.account_status
        ),
-       'method', to_jsonb(m),
+       'method', CASE WHEN m.id IS NULL THEN NULL ELSE to_jsonb(m) END,
        'reviewed_by', CASE WHEN rb.id IS NULL THEN NULL ELSE jsonb_build_object('name', rb.name) END
      ) AS data
      FROM signup_payments sp
      JOIN users u ON u.id = sp.user_id
-     JOIN payment_methods m ON m.id = sp.method_id
+     LEFT JOIN payment_methods m ON m.id = sp.method_id
      LEFT JOIN users rb ON rb.id = sp.reviewed_by
      ORDER BY sp.created_at DESC
      LIMIT 100`,
@@ -36,7 +38,7 @@ export async function GET() {
 }
 
 export async function PATCH(request: Request) {
-  const { user, error } = await requireSession(['admin']);
+  const { user, error } = await requireAdmin('payments.manage');
   if (error || !user) return error!;
 
   const body = (await request.json()) as {
@@ -50,15 +52,15 @@ export async function PATCH(request: Request) {
   }
 
   const payment = await queryDataOne<
-    SignupPayment & { user: User; method: PaymentMethod }
+    SignupPayment & { user: User; method: PaymentMethod | null }
   >(
     `SELECT to_jsonb(sp) || jsonb_build_object(
        'user', to_jsonb(u),
-       'method', to_jsonb(m)
+       'method', CASE WHEN m.id IS NULL THEN NULL ELSE to_jsonb(m) END
      ) AS data
      FROM signup_payments sp
      JOIN users u ON u.id = sp.user_id
-     JOIN payment_methods m ON m.id = sp.method_id
+     LEFT JOIN payment_methods m ON m.id = sp.method_id
      WHERE sp.id = $1`,
     [body.id],
   );
@@ -70,6 +72,7 @@ export async function PATCH(request: Request) {
   }
 
   if (body.status === 'rejected') {
+    const reason = body.reason?.trim() || 'Your signup payment could not be confirmed.';
     await withTransaction(async (tx) => {
       await query(
         `UPDATE signup_payments
@@ -78,7 +81,7 @@ export async function PATCH(request: Request) {
              reviewed_by = $2,
              reviewed_at = now()
          WHERE id = $3`,
-        [body.reason?.trim() || 'Payment rejected by admin.', user.id, payment.id],
+        [reason, user.id, payment.id],
         tx,
       );
       await query(
@@ -91,17 +94,38 @@ export async function PATCH(request: Request) {
     await notifyUser(payment.userId, {
       type: 'signup_payment_rejected',
       title: 'Signup payment rejected',
-      body: `${body.reason?.trim() || 'Your signup payment could not be confirmed.'} Please resubmit your payment.`,
+      body: `${reason} Please resubmit your payment.`,
     });
+
+    let emailError: string | null = null;
+    if (payment.user.email?.trim() && isMailConfigured()) {
+      try {
+        await sendSignupRejectedEmail({
+          to: payment.user.email.trim(),
+          name: payment.user.name,
+          phone: normalizePhone(payment.user.phone) || payment.user.phone,
+          role: payment.user.role,
+          reason,
+        });
+      } catch (err) {
+        emailError = err instanceof Error ? err.message : 'Unable to send email.';
+      }
+    } else {
+      emailError = 'No email address or mail is not configured.';
+    }
 
     await notifyAdmin({
       type: 'signup_payment_rejected',
       title: 'Signup payment rejected',
-      body: `${payment.user.name} (${payment.user.phone}) — ${body.reason || 'no reason'}`,
+      body: `${payment.user.name} (${payment.user.phone}) — ${reason}${emailError ? ` (email not sent: ${emailError})` : ''}`,
       href: '/admin/payments',
     });
 
-    return NextResponse.json({ ok: true, status: 'rejected' });
+    return NextResponse.json({
+      ok: true,
+      status: 'rejected',
+      ...(emailError ? { warning: `Rejection email not sent: ${emailError}` } : {}),
+    });
   }
 
   // Confirm payment → activate account → email OTP for login
@@ -120,30 +144,9 @@ export async function PATCH(request: Request) {
   });
 
   const freshUser = await queryOne<User>(`SELECT * FROM users WHERE id = $1`, [payment.userId]);
-
-  let otpResult: { phone: string; email?: string; message: string; devCode?: string } | null = null;
-  let otpError: string | null = null;
-
-  try {
-    if (!freshUser) throw new Error('Activated user not found.');
-    otpResult = await issueOtpToUser({
-      user: freshUser,
-      purpose: 'login',
-      reason: 'payment_approved',
-    });
-  } catch (err) {
-    otpError = err instanceof Error ? err.message : 'Unable to email OTP.';
-  }
-
-  await notifyUser(payment.userId, {
-    type: 'account_activated',
-    title: 'Welcome to Craftviva',
-    body:
-      payment.user.role === 'artisan'
-        ? 'Your signup payment was confirmed. Complete identity verification to start receiving bookings.'
-        : 'Your signup payment was confirmed. Find a verified service provider and book your first job.',
-    href: payment.user.role === 'artisan' ? '/provider/verification' : '/user/search',
-  });
+  const { otp: otpResult, otpError } = freshUser
+    ? await welcomeActivatedUser(freshUser)
+    : { otp: null, otpError: 'Activated user not found.' };
 
   await notifyAdmin({
     type: 'signup_payment_confirmed',
@@ -159,7 +162,7 @@ export async function PATCH(request: Request) {
     },
   });
 
-  if (otpError) {
+  if (otpError || !otpResult) {
     return NextResponse.json({
       ok: true,
       status: 'confirmed',
@@ -172,9 +175,9 @@ export async function PATCH(request: Request) {
     ok: true,
     status: 'confirmed',
     otp: {
-      phone: otpResult!.phone,
-      email: otpResult!.email,
-      message: otpResult!.message,
+      phone: otpResult.phone,
+      email: otpResult.email,
+      message: otpResult.message,
     },
   });
 }

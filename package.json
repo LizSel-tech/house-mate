@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
+    "@paystack/inline-js": "^2.22.2",
     "next": "^16.2.10",
     "nodemailer": "^9.0.5",
     "pg": "^8.23.0",

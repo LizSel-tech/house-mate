@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireSession } from '@/lib/auth/require-session';
+import { requireAdmin } from '@/lib/auth/admin-access';
 import {
   ensureDefaultPaymentMethods,
   getOrCreatePlatformSettings,
@@ -9,7 +9,7 @@ import { buildUpdates, queryOne } from '@/lib/db';
 import type { PlatformSetting } from '@/types/db';
 
 export async function GET() {
-  const { user, error } = await requireSession(['admin']);
+  const { user, error } = await requireAdmin('settings.manage');
   if (error || !user) return error!;
 
   await ensureDefaultPaymentMethods();
@@ -30,7 +30,7 @@ export async function GET() {
 }
 
 export async function PATCH(request: Request) {
-  const { user, error } = await requireSession(['admin']);
+  const { user, error } = await requireAdmin('settings.manage');
   if (error || !user) return error!;
 
   const body = (await request.json()) as {

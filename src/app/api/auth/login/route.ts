@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { LoginPayload } from '@/types/auth';
-import { PORTAL_HOME } from '@/lib/auth/constants';
+import { PORTAL_HOME, isDemoAdminEnabled } from '@/lib/auth/constants';
 import { verifyOtp } from '@/lib/auth/otp';
 import { setSession } from '@/lib/auth/session';
 import { toSessionUser } from '@/lib/auth/users';
@@ -40,7 +40,7 @@ export async function POST(request: Request) {
 
     let user = await queryOne<User>(`SELECT * FROM users WHERE phone = $1 LIMIT 1`, [phone]);
 
-    if (!user && body.demoAdmin) {
+    if (!user && body.demoAdmin && isDemoAdminEnabled()) {
       const adminEmail =
         process.env.DEMO_ADMIN_EMAIL?.trim() ||
         process.env.MAIL_FROM_ADDRESS?.trim() ||
@@ -66,8 +66,20 @@ export async function POST(request: Request) {
         [user.id],
       );
 
-      // Legacy accounts created before payment gating — activate on first login.
-      if (!payment) {
+      const startedOnlinePayment = payment
+        ? null
+        : await queryOne(
+            `SELECT 1 FROM paystack_transactions WHERE user_id = $1 AND purpose = 'signup' LIMIT 1`,
+            [user.id],
+          );
+
+      if (!payment && startedOnlinePayment) {
+        return NextResponse.json(
+          { error: 'Your signup fee has not been paid yet. Finish paying on the signup page to activate your account.' },
+          { status: 403 },
+        );
+      } else if (!payment) {
+        // Legacy accounts created before payment gating — activate on first login.
         user = (await queryOne<User>(
           `UPDATE users SET account_status = 'active' WHERE id = $1 RETURNING *`,
           [user.id],
@@ -84,8 +96,7 @@ export async function POST(request: Request) {
         return NextResponse.json(
           {
             error:
-              payment.rejectionReason ||
-              'Your signup payment was rejected. Contact support or sign up again with a valid proof.',
+              `${payment.rejectionReason || 'Your signup payment was rejected.'} Resubmit from the signup page using the same phone and email.`,
           },
           { status: 403 },
         );

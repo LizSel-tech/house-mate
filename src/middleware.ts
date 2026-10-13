@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { SESSION_COOKIE, PORTAL_HOME, ROLE_FOR_PORTAL } from '@/lib/auth/constants';
-import { decodeSession } from '@/lib/auth/session-token';
+import { decodeSession } from '@/lib/auth/session-cookie';
 import type { PortalId } from '@/types/auth';
 
 const PROTECTED_PREFIXES = ['/user', '/provider', '/admin'] as const;
@@ -12,7 +12,7 @@ function portalFromPath(pathname: string): PortalId | null {
   return null;
 }
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const isProtected = PROTECTED_PREFIXES.some(
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
@@ -22,7 +22,7 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const session = decodeSession(request.cookies.get(SESSION_COOKIE)?.value);
+  const session = await decodeSession(request.cookies.get(SESSION_COOKIE)?.value);
   const portal = portalFromPath(pathname);
 
   if (!session) {

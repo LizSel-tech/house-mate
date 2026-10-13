@@ -13,14 +13,47 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const nextPath = searchParams.get('next');
+  const linkedPhone = sanitizePhoneInput(searchParams.get('phone') || '').trim();
+  const openedFromEmail = Boolean(linkedPhone) && searchParams.get('step') === 'code';
 
-  const [phone, setPhone] = useState('');
+  const [phone, setPhone] = useState(linkedPhone);
   const [otp, setOtp] = useState('');
-  const [otpSent, setOtpSent] = useState(false);
-  const [otpHint, setOtpHint] = useState('');
+  const [otpSent, setOtpSent] = useState(openedFromEmail);
+  const [otpHint, setOtpHint] = useState(
+    openedFromEmail ? 'Enter the 6-digit code from your email.' : '',
+  );
   const [demoAdmin, setDemoAdmin] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [resent, setResent] = useState(false);
+
+  const resendOtp = async () => {
+    setError('');
+    setResent(false);
+    setResending(true);
+    try {
+      const res = await fetch('/api/auth/otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone, purpose: 'login', demoAdmin }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || 'Unable to resend the code.');
+        return;
+      }
+      setOtp('');
+      setOtpHint(
+        data.email ? `New code sent to ${data.email}.` : data.message || 'New code sent.',
+      );
+      setResent(true);
+    } catch {
+      setError('Something went wrong. Please try again.');
+    } finally {
+      setResending(false);
+    }
+  };
 
   const sendOtp = async (e: FormEvent) => {
     e.preventDefault();
@@ -104,17 +137,19 @@ function LoginForm() {
             />
           </div>
 
-          <label className="flex items-start gap-3 text-sm text-muted-foreground">
-            <input
-              type="checkbox"
-              checked={demoAdmin}
-              onChange={(e) => setDemoAdmin(e.target.checked)}
-              className="mt-1 rounded border-border"
-            />
-            <span>
-              Demo admin access (invite-only role). Check this only when testing the admin portal.
-            </span>
-          </label>
+          {process.env.NODE_ENV !== 'production' && (
+            <label className="flex items-start gap-3 text-sm text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={demoAdmin}
+                onChange={(e) => setDemoAdmin(e.target.checked)}
+                className="mt-1 rounded border-border"
+              />
+              <span>
+                Demo admin access (development only). Creates an admin for a new phone number.
+              </span>
+            </label>
+          )}
 
           {error && (
             <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl px-4 py-3">
@@ -128,13 +163,15 @@ function LoginForm() {
         </form>
       ) : (
         <form onSubmit={handleLogin} className="flex flex-col gap-5">
-          <p className="text-sm text-muted-foreground">
-            {otpHint || (
-              <>
-                Code sent for <span className="font-semibold text-foreground">{phone}</span>.
-              </>
-            )}
-          </p>
+          <div className="rounded-2xl border border-border bg-muted/40 px-4 py-3">
+            <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+              Signing in as
+            </p>
+            <p className="text-sm font-semibold text-foreground mt-0.5">{phone}</p>
+            <p className={`text-sm mt-1 ${resent ? 'text-green-700' : 'text-muted-foreground'}`}>
+              {otpHint || 'Enter the 6-digit code we emailed you.'}
+            </p>
+          </div>
 
           <div className="flex flex-col gap-2">
             <label htmlFor="otp" className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
@@ -148,9 +185,22 @@ function LoginForm() {
               value={otp}
               onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
               placeholder="6-digit code"
+              autoComplete="one-time-code"
+              autoFocus
               className="w-full px-4 py-3 rounded-2xl border border-border bg-background text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring tracking-widest"
               required
             />
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-muted-foreground">Didn’t get it, or code expired?</span>
+              <button
+                type="button"
+                onClick={resendOtp}
+                disabled={resending}
+                className="font-semibold text-primary hover:text-accent disabled:opacity-50"
+              >
+                {resending ? 'Sending…' : 'Resend code'}
+              </button>
+            </div>
           </div>
 
           {error && (
@@ -169,6 +219,7 @@ function LoginForm() {
               setOtpSent(false);
               setOtp('');
               setOtpHint('');
+              setResent(false);
               setError('');
             }}
             className="text-sm font-medium text-muted-foreground hover:text-foreground"

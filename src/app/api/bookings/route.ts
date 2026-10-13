@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { adminCan } from '@/lib/auth/admin-access';
 import { requireSession } from '@/lib/auth/require-session';
 import { queryData, queryOne } from '@/lib/db';
 import { BOOKING_DATA_SQL } from '@/lib/db/bookings';
@@ -32,6 +33,10 @@ export async function GET(request: Request) {
       [profile.id],
     );
     return NextResponse.json({ bookings });
+  }
+
+  if (!(await adminCan(user.id, 'bookings.manage'))) {
+    return NextResponse.json({ error: 'Your role does not allow this action.' }, { status: 403 });
   }
 
   const bookings = await queryData(

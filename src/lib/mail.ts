@@ -116,30 +116,103 @@ export async function sendMail(input: {
   });
 }
 
-export async function sendOtpEmail(input: {
+export function siteUrl(): string {
+  return (env('NEXT_PUBLIC_SITE_URL') || 'http://localhost:3000').replace(/\/+$/, '');
+}
+
+export function loginLink(phone: string): string {
+  const params = new URLSearchParams({ phone, step: 'code' });
+  return `${siteUrl()}/login?${params.toString()}`;
+}
+
+export function resubmitSignupLink(input: { phone: string; email: string; role: string }): string {
+  const params = new URLSearchParams({ phone: input.phone, email: input.email, role: input.role });
+  return `${siteUrl()}/signup?${params.toString()}`;
+}
+
+export async function sendSignupRejectedEmail(input: {
   to: string;
   name?: string | null;
-  code: string;
-  reason: 'payment_approved' | 'login';
+  phone: string;
+  role: string;
+  reason: string;
 }) {
   const greeting = input.name?.trim() ? `Hi ${input.name.trim()},` : 'Hi,';
   const lead =
-    input.reason === 'payment_approved'
-      ? 'Your signup payment is confirmed. Use this code to sign in and finish setting up.'
-      : 'Use this one-time code to sign in to Craftviva.';
-  const subject =
-    input.reason === 'payment_approved'
-      ? 'Payment approved - your Craftviva login code'
-      : 'Your Craftviva login code';
-  const preheader = 'Your 6-digit Craftviva login code expires in 5 minutes.';
+    'We could not confirm your Craftviva signup payment. Please pay again or upload a clearer proof using the same phone number and email.';
+  const link = resubmitSignupLink({ phone: input.phone, email: input.to, role: input.role });
 
   const text = `${greeting}
 
 ${lead}
 
-${input.code}
+Reason: ${input.reason}
 
-This code expires in 5 minutes. If you did not request it, you can ignore this email.
+Resubmit here: ${link}
+
+- Craftviva`;
+
+  const html = renderEmailLayout({
+    preheader: 'Your Craftviva signup payment needs attention.',
+    bodyHtml: `
+      <p style="margin:0 0 8px;font-size:16px;color:#1C1917;">${escapeHtml(greeting)}</p>
+      <p style="margin:0 0 20px;font-size:15px;line-height:1.6;color:#78716C;">${escapeHtml(lead)}</p>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+          <td style="background:#FEF2F2;border:1px solid #FECACA;border-radius:12px;padding:16px;">
+            <p style="margin:0 0 6px;font-size:11px;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;color:#B91C1C;">Reason</p>
+            <p style="margin:0;font-size:14px;line-height:1.6;color:#1C1917;">${escapeHtml(input.reason)}</p>
+          </td>
+        </tr>
+      </table>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:24px;">
+        <tr>
+          <td align="center">
+            <a href="${escapeHtml(link)}" target="_blank" rel="noopener" style="display:inline-block;background:#D97706;color:#FFFFFF;font-size:15px;font-weight:700;text-decoration:none;padding:14px 28px;border-radius:12px;">Resubmit payment</a>
+          </td>
+        </tr>
+      </table>
+      <p style="margin:16px 0 0;font-size:12px;line-height:1.6;color:#78716C;text-align:center;">Button not working? Copy this link into your browser:<br /><a href="${escapeHtml(link)}" style="color:#B45309;word-break:break-all;">${escapeHtml(link)}</a></p>
+    `,
+  });
+
+  await sendMail({ to: input.to, subject: 'Action needed: your Craftviva signup payment', text, html });
+}
+
+export async function sendOtpEmail(input: {
+  to: string;
+  name?: string | null;
+  phone: string;
+  code: string;
+  reason: 'payment_approved' | 'account_created' | 'login';
+  expiresInMinutes: number;
+}) {
+  const greeting = input.name?.trim() ? `Hi ${input.name.trim()},` : 'Hi,';
+  const lead =
+    input.reason === 'payment_approved'
+      ? 'Your signup payment is confirmed. Click the button below, then enter this code to sign in and finish setting up.'
+      : input.reason === 'account_created'
+        ? 'An administrator created a Craftviva account for you. Click the button below, then enter this code to sign in.'
+        : 'Use this one-time code to sign in to Craftviva.';
+  const subject =
+    input.reason === 'payment_approved'
+      ? 'Payment approved - sign in to Craftviva'
+      : input.reason === 'account_created'
+        ? 'Your Craftviva account is ready'
+        : 'Your Craftviva login code';
+  const minutes = `${input.expiresInMinutes} minute${input.expiresInMinutes === 1 ? '' : 's'}`;
+  const preheader = `Your 6-digit Craftviva login code expires in ${minutes}.`;
+  const link = loginLink(input.phone);
+
+  const text = `${greeting}
+
+${lead}
+
+Login code: ${input.code}
+
+Sign in here: ${link}
+
+This code expires in ${minutes}. If you did not request it, you can ignore this email.
 
 Verified service providers across Ghana. Pay with escrow until the job is done.
 
@@ -158,7 +231,15 @@ Verified service providers across Ghana. Pay with escrow until the job is done.
           </td>
         </tr>
       </table>
-      <p style="margin:24px 0 0;font-size:13px;line-height:1.6;color:#78716C;">This code expires in <strong style="color:#1C1917;">5 minutes</strong>. If you did not request it, you can ignore this email.</p>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:24px;">
+        <tr>
+          <td align="center">
+            <a href="${escapeHtml(link)}" target="_blank" rel="noopener" style="display:inline-block;background:#D97706;color:#FFFFFF;font-size:15px;font-weight:700;text-decoration:none;padding:14px 28px;border-radius:12px;">Sign in to Craftviva</a>
+          </td>
+        </tr>
+      </table>
+      <p style="margin:16px 0 0;font-size:12px;line-height:1.6;color:#78716C;text-align:center;">Button not working? Copy this link into your browser:<br /><a href="${escapeHtml(link)}" style="color:#B45309;word-break:break-all;">${escapeHtml(link)}</a></p>
+      <p style="margin:24px 0 0;font-size:13px;line-height:1.6;color:#78716C;">This code expires in <strong style="color:#1C1917;">${escapeHtml(minutes)}</strong>. If you did not request it, you can ignore this email.</p>
     `,
   });
 

@@ -65,6 +65,67 @@ export default function CustomerBookings() {
     }
   };
 
+  const verifyPayment = async (reference: string) => {
+    for (let attempt = 0; attempt < 6; attempt += 1) {
+      const res = await fetch('/api/payments/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reference }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.error || 'We could not confirm the payment.');
+        return;
+      }
+      if (!data.pending) {
+        setMessage(data.message || 'Payment received.');
+        return;
+      }
+      setMessage(data.message);
+      await new Promise((resolve) => setTimeout(resolve, 5000));
+    }
+    setMessage('Payment is still processing. We’ll update this booking as soon as Paystack confirms it.');
+  };
+
+  const pay = async (id: string) => {
+    setError('');
+    setMessage('');
+    setBusyId(`${id}-pay`);
+    try {
+      const res = await fetch(`/api/bookings/${id}/pay`, { method: 'POST' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.error || 'Could not start the payment.');
+        return;
+      }
+      if (data.mode !== 'paystack') {
+        setMessage(data.message || 'Payment held in escrow.');
+        await load();
+        return;
+      }
+
+      const { default: PaystackPop } = await import('@paystack/inline-js');
+      const outcome = await new Promise<{ reference?: string; error?: string }>((resolve) => {
+        new PaystackPop().resumeTransaction(data.accessCode, {
+          onSuccess: (tx) => resolve({ reference: tx.reference || data.reference }),
+          onCancel: () => resolve({}),
+          onError: (err) => resolve({ error: err?.message || 'The payment window could not open.' }),
+        });
+      });
+      if (!outcome.reference) {
+        if (outcome.error) setError(outcome.error);
+        else setMessage('Payment cancelled. You can try again any time.');
+        return;
+      }
+      const reference = outcome.reference;
+      setMessage('Confirming your payment…');
+      await verifyPayment(reference);
+      await load();
+    } finally {
+      setBusyId('');
+    }
+  };
+
   const cancel = async (id: string) => {
     setBusyId(`${id}-cancel`);
     try {
@@ -202,7 +263,7 @@ export default function CustomerBookings() {
                   <Button
                     type="button"
                     loading={busyId === `${booking.id}-pay`}
-                    onClick={() => act(booking.id, 'pay')}
+                    onClick={() => pay(booking.id)}
                     className="!min-h-[40px]"
                   >
                     Pay into escrow

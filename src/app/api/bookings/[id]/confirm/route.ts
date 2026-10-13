@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireSession } from '@/lib/auth/require-session';
 import { query, queryDataOne, withTransaction } from '@/lib/db';
 import { getBookingParties, notifyUser } from '@/lib/notify';
+import { releasePayout } from '@/lib/payments';
 import type { ArtisanProfile, Booking, Payment } from '@/types/db';
 
 /** User confirms completion → release escrow to artisan (minus commission) */
@@ -60,18 +61,24 @@ export async function POST(
   });
 
   const payout = Number(result.payment.amount) - Number(result.payment.commission);
+  const transfer = await releasePayout(result.payment.id);
 
   const parties = await getBookingParties(id);
   await notifyUser(booking.artisan.userId, {
     type: 'payout_released',
     title: 'Payment released',
-    body: `${parties?.customerName || 'The customer'} confirmed "${parties?.title || 'your job'}". GHS ${payout.toFixed(2)} has been released to you.`,
+    body: `${parties?.customerName || 'The customer'} confirmed "${parties?.title || 'your job'}". GHS ${payout.toFixed(2)} ${
+      transfer.status === 'paid' || transfer.status === 'pending'
+        ? 'is on its way to your payout account.'
+        : 'has been released to you.'
+    }`,
     href: '/provider/earnings',
   });
 
   return NextResponse.json({
     ...result,
     artisanPayout: payout,
-    message: 'Escrow released to the service provider (mock payout). You can leave a review.',
+    payoutStatus: transfer.status,
+    message: 'Escrow released to the service provider. You can leave a review.',
   });
 }

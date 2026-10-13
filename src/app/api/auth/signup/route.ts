@@ -1,14 +1,19 @@
+import { randomBytes } from 'crypto';
 import { NextResponse } from 'next/server';
 import type { SignupPayload } from '@/types/auth';
 import { normalizePhone } from '@/lib/auth/session-token';
 import { notifyAdmin, getOrCreatePlatformSettings } from '@/lib/admin-notify';
-import { isDatabaseConfigured, queryOne, withTransaction } from '@/lib/db';
+import { isDatabaseConfigured, query, queryOne, withTransaction } from '@/lib/db';
+import { PaystackError, initializeTransaction, isPaystackConfigured } from '@/lib/paystack';
 import { saveUpload } from '@/lib/uploads';
-import type { PaymentMethod, User } from '@/types/db';
+import type { PaymentMethod, SignupPayment, User } from '@/types/db';
+
+const roleLabel = (role: string) => (role === 'artisan' ? 'service provider' : 'client');
 
 /**
- * Signup with required registration payment proof.
- * Creates pending_payment user — no session until admin confirms.
+ * Signup with the registration fee, paid either through Paystack (activated automatically once paid)
+ * or manually with a proof upload (admin review). An unpaid or rejected registration can be resubmitted
+ * with the same phone and email.
  */
 export async function POST(request: Request) {
   try {
@@ -27,6 +32,7 @@ export async function POST(request: Request) {
     const phoneRaw = String(form.get('phone') || '').trim();
     const emailRaw = String(form.get('email') || '').trim();
     const role = String(form.get('role') || '').trim() as SignupPayload['role'];
+    const payWith = String(form.get('payWith') || 'manual') === 'paystack' ? 'paystack' : 'manual';
     const methodId = String(form.get('methodId') || '').trim();
     const reference = String(form.get('reference') || '').trim();
     const proof = form.get('proof');
@@ -36,7 +42,7 @@ export async function POST(request: Request) {
     }
     if (!emailRaw || !emailRaw.includes('@')) {
       return NextResponse.json(
-        { error: 'A valid email is required so we can send your login OTP after payment approval.' },
+        { error: 'A valid email is required so we can send your login OTP after payment.' },
         { status: 400 },
       );
     }
@@ -46,17 +52,25 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
-    if (!methodId || !reference) {
+    if (payWith === 'paystack' && !isPaystackConfigured()) {
       return NextResponse.json(
-        { error: 'Select a payment method and enter your transaction reference.' },
+        { error: 'Online payment is not available right now. Pay manually and upload your proof.' },
         { status: 400 },
       );
     }
-    if (!(proof instanceof File) || proof.size === 0) {
-      return NextResponse.json(
-        { error: 'Upload a payment proof screenshot or PDF.' },
-        { status: 400 },
-      );
+    if (payWith === 'manual') {
+      if (!methodId || !reference) {
+        return NextResponse.json(
+          { error: 'Select a payment method and enter your transaction reference.' },
+          { status: 400 },
+        );
+      }
+      if (!(proof instanceof File) || proof.size === 0) {
+        return NextResponse.json(
+          { error: 'Upload a payment proof screenshot or PDF.' },
+          { status: 400 },
+        );
+      }
     }
 
     const phone = normalizePhone(phoneRaw) || phoneRaw;
@@ -67,64 +81,133 @@ export async function POST(request: Request) {
       [phone, phoneRaw],
     );
     if (existing) {
-      return NextResponse.json(
-        { error: 'An account with this phone already exists. Please log in.' },
-        { status: 409 },
+      if (existing.role === 'admin' || existing.accountStatus !== 'pending_payment') {
+        return NextResponse.json(
+          { error: 'An account with this phone already exists. Please log in.' },
+          { status: 409 },
+        );
+      }
+      const latest = await queryOne<SignupPayment>(
+        `SELECT * FROM signup_payments WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1`,
+        [existing.id],
       );
-    }
-
-    const method = await queryOne<PaymentMethod>(
-      `SELECT * FROM payment_methods WHERE id = $1 AND is_active = true`,
-      [methodId],
-    );
-    if (!method) {
-      return NextResponse.json({ error: 'Invalid payment method.' }, { status: 400 });
+      if (latest?.status === 'pending') {
+        return NextResponse.json(
+          { error: 'Your registration is already awaiting admin review. You’ll get an email once it’s approved.' },
+          { status: 409 },
+        );
+      }
+      if ((existing.email || '').trim().toLowerCase() !== email.toLowerCase()) {
+        return NextResponse.json(
+          {
+            error:
+              'This phone number already has a registration. Use the same email you signed up with to resubmit your payment.',
+          },
+          { status: 409 },
+        );
+      }
+      if (existing.role !== role) {
+        return NextResponse.json(
+          { error: `This phone was registered as a ${roleLabel(existing.role)}. Choose that account type to resubmit.` },
+          { status: 409 },
+        );
+      }
     }
 
     const settings = await getOrCreatePlatformSettings();
     const amount =
       role === 'artisan' ? Number(settings.artisanSignupFee) : Number(settings.userSignupFee);
 
-    let proofUrl: string;
-    try {
-      proofUrl = await saveUpload(proof, 'payments');
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Proof upload failed.';
-      return NextResponse.json({ error: message }, { status: 400 });
+    let method: PaymentMethod | null = null;
+    let proofUrl: string | null = null;
+    if (payWith === 'manual') {
+      method = await queryOne<PaymentMethod>(
+        `SELECT * FROM payment_methods WHERE id = $1 AND is_active = true`,
+        [methodId],
+      );
+      if (!method) {
+        return NextResponse.json({ error: 'Invalid payment method.' }, { status: 400 });
+      }
+      try {
+        proofUrl = await saveUpload(proof as File, 'payments');
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Proof upload failed.';
+        return NextResponse.json({ error: message }, { status: 400 });
+      }
     }
 
     const user = await withTransaction(async (tx) => {
-      const created = await queryOne<User>(
-        `INSERT INTO users (name, phone, email, role, account_status)
-         VALUES ($1, $2, $3, $4, 'pending_payment')
-         RETURNING *`,
-        [name, phone, email, role],
-        tx,
-      );
-      if (!created) throw new Error('Unable to create user.');
+      let account = existing;
+      if (!account) {
+        account = await queryOne<User>(
+          `INSERT INTO users (name, phone, email, role, account_status)
+           VALUES ($1, $2, $3, $4, 'pending_payment')
+           RETURNING *`,
+          [name, phone, email, role],
+          tx,
+        );
+        if (!account) throw new Error('Unable to create user.');
+        if (role === 'artisan') {
+          await queryOne(
+            `INSERT INTO artisan_profiles (user_id, trade) VALUES ($1, '')`,
+            [account.id],
+            tx,
+          );
+        }
+      }
 
-      if (role === 'artisan') {
+      if (payWith === 'manual') {
         await queryOne(
-          `INSERT INTO artisan_profiles (user_id, trade) VALUES ($1, '')`,
-          [created.id],
+          `INSERT INTO signup_payments (user_id, method_id, amount, role, reference, proof_url, status, provider)
+           VALUES ($1, $2, $3, $4, $5, $6, 'pending', 'manual')`,
+          [account.id, method!.id, amount, role, reference, proofUrl],
           tx,
         );
       }
-
-      await queryOne(
-        `INSERT INTO signup_payments (user_id, method_id, amount, role, reference, proof_url, status)
-         VALUES ($1, $2, $3, $4, $5, $6, 'pending')`,
-        [created.id, method.id, amount, role, reference, proofUrl],
-        tx,
-      );
-
-      return created;
+      return account;
     });
+
+    if (payWith === 'paystack') {
+      const paystackRef = `cv_su_${user.id.slice(0, 8)}_${Date.now()}_${randomBytes(3).toString('hex')}`;
+      await query(
+        `INSERT INTO paystack_transactions (reference, purpose, user_id, amount, commission)
+         VALUES ($1, 'signup', $2, $3, 0)`,
+        [paystackRef, user.id, amount],
+      );
+      try {
+        const init = await initializeTransaction({
+          email,
+          amountGhs: amount,
+          reference: paystackRef,
+          metadata: { purpose: 'signup', userId: user.id, role },
+        });
+        await query(
+          `UPDATE paystack_transactions SET access_code = $2, updated_at = now() WHERE reference = $1`,
+          [paystackRef, init.access_code],
+        );
+        return NextResponse.json({
+          ok: true,
+          mode: 'paystack',
+          reference: paystackRef,
+          accessCode: init.access_code,
+          authorizationUrl: init.authorization_url,
+          phone,
+          amount,
+        });
+      } catch (err) {
+        await query(
+          `UPDATE paystack_transactions SET status = 'failed', gateway_response = $2, updated_at = now() WHERE reference = $1`,
+          [paystackRef, err instanceof Error ? err.message : 'Initialize failed'],
+        );
+        const message = err instanceof PaystackError ? err.message : 'Could not start the payment.';
+        return NextResponse.json({ error: message }, { status: 502 });
+      }
+    }
 
     await notifyAdmin({
       type: 'signup_registration',
-      title: 'New registration submitted',
-      body: `${name} signed up as ${role === 'artisan' ? 'service provider' : 'client'} (${phone}).`,
+      title: existing ? 'Registration resubmitted' : 'New registration submitted',
+      body: `${name} ${existing ? 'resubmitted their signup payment' : 'signed up'} as ${roleLabel(role)} (${phone}).`,
       href: '/admin/payments',
       meta: { userId: user.id, role, phone },
     });
@@ -132,13 +215,14 @@ export async function POST(request: Request) {
     await notifyAdmin({
       type: 'signup_payment',
       title: 'Signup payment awaiting review',
-      body: `${name} paid GHS ${amount.toFixed(2)} via ${method.name}. Ref: ${reference}`,
+      body: `${name} paid GHS ${amount.toFixed(2)} via ${method!.name}. Ref: ${reference}`,
       href: '/admin/payments',
-      meta: { userId: user.id, method: method.name, reference, amount },
+      meta: { userId: user.id, method: method!.name, reference, amount },
     });
 
     return NextResponse.json({
       ok: true,
+      mode: 'manual',
       message:
         'Registration submitted. An admin will confirm your payment, then you’ll receive an OTP by email to log in.',
       phone,

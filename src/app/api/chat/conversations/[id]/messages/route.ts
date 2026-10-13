@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { adminCan } from '@/lib/auth/admin-access';
 import { requireSession } from '@/lib/auth/require-session';
 import { query, queryOne } from '@/lib/db';
 import { notifyUser } from '@/lib/notify';
@@ -18,6 +19,7 @@ async function canAccess(conversationId: string, userId: string, role: string) {
   );
   if (!convo) return null;
   if (role === 'admin') {
+    if (!(await adminCan(userId, 'chat.view'))) return null;
     const consent = await queryOne<{ ok: boolean }>(
       `SELECT (
          coalesce(u.allow_admin_chat_review, true)

@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
-import { requireSession } from '@/lib/auth/require-session';
+import { requireAdmin } from '@/lib/auth/admin-access';
 import { ensureDefaultPaymentMethods, listPaymentMethods } from '@/lib/admin-notify';
 import { buildUpdates, queryOne } from '@/lib/db';
 import type { PaymentMethod, PaymentMethodType } from '@/types/db';
 
 export async function GET() {
-  const { user, error } = await requireSession(['admin']);
+  const { user, error } = await requireAdmin('payments.manage');
   if (error || !user) return error!;
   await ensureDefaultPaymentMethods();
   const methods = await listPaymentMethods();
@@ -13,7 +13,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const { user, error } = await requireSession(['admin']);
+  const { user, error } = await requireAdmin('payments.manage');
   if (error || !user) return error!;
 
   const body = (await request.json()) as {
@@ -52,7 +52,7 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  const { user, error } = await requireSession(['admin']);
+  const { user, error } = await requireAdmin('payments.manage');
   if (error || !user) return error!;
 
   const body = (await request.json()) as {

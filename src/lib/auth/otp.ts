@@ -7,7 +7,11 @@ import type { OtpCode, User } from '@/types/db';
 type OtpPurpose = 'login' | 'signup';
 
 const OTP_TTL_MS = 5 * 60 * 1000;
+// Approval / welcome emails are often opened long after they are sent.
+const EMAILED_INVITE_TTL_MS = 30 * 60 * 1000;
 const MAX_ATTEMPTS = 5;
+
+export type OtpEmailReason = 'payment_approved' | 'account_created' | 'login';
 
 export function hashOtp(code: string): string {
   return createHash('sha256').update(code).digest('hex');
@@ -28,7 +32,11 @@ function shouldExposeDevCode(): boolean {
   return process.env.OTP_DEV_MODE === 'true';
 }
 
-export async function createOtpRecord(phoneRaw: string, purpose: OtpPurpose = 'login') {
+export async function createOtpRecord(
+  phoneRaw: string,
+  purpose: OtpPurpose = 'login',
+  ttlMs: number = OTP_TTL_MS,
+) {
   const phone = normalizePhone(phoneRaw) || phoneRaw.trim();
   if (!phone) {
     throw new Error('Phone number is required.');
@@ -36,7 +44,7 @@ export async function createOtpRecord(phoneRaw: string, purpose: OtpPurpose = 'l
 
   const code = generateOtpCode();
   const codeHash = hashOtp(code);
-  const expiresAt = new Date(Date.now() + OTP_TTL_MS);
+  const expiresAt = new Date(Date.now() + ttlMs);
 
   await query(
     `UPDATE otp_codes
@@ -58,7 +66,7 @@ export async function createOtpRecord(phoneRaw: string, purpose: OtpPurpose = 'l
 export async function issueOtpToUser(input: {
   user: Pick<User, 'phone' | 'email' | 'name'>;
   purpose?: OtpPurpose;
-  reason: 'payment_approved' | 'login';
+  reason: OtpEmailReason;
 }) {
   const email = input.user.email?.trim();
   if (!email) {
@@ -68,16 +76,20 @@ export async function issueOtpToUser(input: {
     throw new Error('Mail is not configured. Set MAIL_HOST and MAIL_FROM_ADDRESS.');
   }
 
+  const ttlMs = input.reason === 'login' ? OTP_TTL_MS : EMAILED_INVITE_TTL_MS;
   const { phone, code, expiresAt } = await createOtpRecord(
     input.user.phone,
     input.purpose || 'login',
+    ttlMs,
   );
 
   await sendOtpEmail({
     to: email,
     name: input.user.name,
+    phone,
     code,
     reason: input.reason,
+    expiresInMinutes: Math.round(ttlMs / 60000),
   });
 
   const exposeCode = shouldExposeDevCode();

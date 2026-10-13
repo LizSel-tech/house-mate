@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { adminCan } from '@/lib/auth/admin-access';
 import { requireSession } from '@/lib/auth/require-session';
 import { query, queryDataOne } from '@/lib/db';
 import { BOOKING_DATA_SQL } from '@/lib/db/bookings';
@@ -48,7 +49,7 @@ export async function PATCH(
 
   const isOwnerArtisan = user.role === 'artisan' && booking.artisan.userId === user.id;
   const isOwnerUser = !isOwnerArtisan && user.role !== 'admin' && booking.userId === user.id;
-  const isAdmin = user.role === 'admin';
+  const isAdmin = user.role === 'admin' && (await adminCan(user.id, 'bookings.manage'));
 
   if (!isOwnerUser && !isOwnerArtisan && !isAdmin) {
     return NextResponse.json({ error: 'Forbidden.' }, { status: 403 });

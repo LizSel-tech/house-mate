@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
+import { isDemoAdminEnabled } from '@/lib/auth/constants';
 import { issueOtpToUser } from '@/lib/auth/otp';
 import { normalizePhone } from '@/lib/auth/session-token';
 import { isDatabaseConfigured, queryOne } from '@/lib/db';
-import type { User } from '@/types/db';
+import type { SignupPayment, User } from '@/types/db';
 
 /**
  * Request a login OTP.
@@ -40,7 +41,7 @@ export async function POST(request: Request) {
     );
 
     // Demo admin bootstrap: allow OTP before the account exists.
-    if (!user && body.demoAdmin) {
+    if (!user && body.demoAdmin && isDemoAdminEnabled()) {
       const adminEmail =
         process.env.DEMO_ADMIN_EMAIL?.trim() ||
         process.env.MAIL_FROM_ADDRESS?.trim() ||
@@ -61,13 +62,17 @@ export async function POST(request: Request) {
     }
 
     if (user.accountStatus === 'pending_payment') {
-      return NextResponse.json(
-        {
-          error:
-            'Your signup payment is still awaiting admin confirmation. You’ll receive an email with your OTP after it’s approved.',
-        },
-        { status: 403 },
+      const latest = await queryOne<SignupPayment>(
+        `SELECT * FROM signup_payments WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1`,
+        [user.id],
       );
+      const error =
+        latest?.status === 'pending'
+          ? 'Your signup payment is still awaiting admin confirmation. You’ll receive an email with your OTP after it’s approved.'
+          : latest?.status === 'rejected'
+            ? `${latest.rejectionReason || 'Your signup payment was rejected.'} Resubmit from the signup page using the same phone and email.`
+            : 'Your signup fee has not been paid yet. Finish paying on the signup page using the same phone and email.';
+      return NextResponse.json({ error, resubmit: latest?.status !== 'pending' }, { status: 403 });
     }
 
     if (user.accountStatus === 'suspended') {

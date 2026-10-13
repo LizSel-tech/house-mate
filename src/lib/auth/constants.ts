@@ -2,6 +2,14 @@ import type { PortalId, UserRole } from '@/types/auth';
 
 export const SESSION_COOKIE = 'handyman_session';
 
+/**
+ * The "demo admin" login shortcut creates an admin for an unknown phone number.
+ * Never available in production builds; set ENABLE_DEMO_ADMIN=false to turn it off locally too.
+ */
+export function isDemoAdminEnabled(): boolean {
+  return process.env.NODE_ENV !== 'production' && process.env.ENABLE_DEMO_ADMIN !== 'false';
+}
+
 export const PORTAL_HOME: Record<UserRole, string> = {
   user: '/user',
   artisan: '/provider',

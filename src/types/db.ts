@@ -25,7 +25,20 @@ export interface User {
   avatarUrl: string | null;
   coverUrl?: string | null;
   allowAdminChatReview?: boolean;
+  adminRoleId?: string | null;
+  createdBy?: string | null;
   createdAt: Date | string;
+}
+
+export interface AdminRole {
+  id: string;
+  name: string;
+  description: string | null;
+  permissions: string[];
+  isSystem: boolean;
+  createdBy: string | null;
+  createdAt: Date | string;
+  updatedAt: Date | string;
 }
 
 export interface ArtisanProfile {
@@ -38,7 +51,35 @@ export interface ArtisanProfile {
   subscriptionStatus: string;
   averageRating: string | number;
   jobsCompleted: number;
+  payoutType?: PayoutType | null;
+  payoutBankCode?: string | null;
+  payoutBankName?: string | null;
+  payoutAccountNumber?: string | null;
+  payoutAccountName?: string | null;
+  paystackRecipientCode?: string | null;
+  payoutUpdatedAt?: Date | string | null;
   createdAt: Date | string;
+}
+
+export type PayoutType = 'mobile_money' | 'ghipss';
+export type PayoutStatus = 'none' | 'pending' | 'paid' | 'failed' | 'manual';
+
+export interface PaystackTransaction {
+  id: string;
+  reference: string;
+  purpose: string;
+  userId: string | null;
+  bookingId: string | null;
+  amount: string | number;
+  commission: string | number;
+  currency: string;
+  status: 'pending' | 'success' | 'failed' | 'abandoned';
+  accessCode: string | null;
+  channel: string | null;
+  gatewayResponse: string | null;
+  paidAt: Date | string | null;
+  createdAt: Date | string;
+  updatedAt: Date | string;
 }
 
 export interface Service {
@@ -72,6 +113,13 @@ export interface Payment {
   commission: string | number;
   escrowStatus: EscrowStatus;
   paystackReference: string | null;
+  payoutStatus?: PayoutStatus;
+  payoutAmount?: string | number | null;
+  payoutAttempts?: number;
+  transferReference?: string | null;
+  transferCode?: string | null;
+  payoutError?: string | null;
+  paidOutAt?: Date | string | null;
   createdAt: Date | string;
 }
 
@@ -122,11 +170,12 @@ export interface PaymentMethod {
 export interface SignupPayment {
   id: string;
   userId: string;
-  methodId: string;
+  methodId: string | null;
   amount: string | number;
   role: UserRole;
   reference: string;
-  proofUrl: string;
+  proofUrl: string | null;
+  provider: 'manual' | 'paystack';
   status: SignupPaymentStatus;
   rejectionReason: string | null;
   reviewedById: string | null;

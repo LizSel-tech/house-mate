@@ -1,5 +1,7 @@
 import { readFile } from 'fs/promises';
 import { NextResponse } from 'next/server';
+import type { AdminPermission } from '@/lib/admin-permissions';
+import { adminCan } from '@/lib/auth/admin-access';
 import { getSession } from '@/lib/auth/session';
 import { queryOne } from '@/lib/db';
 import { contentTypeFor, resolveUploadFile } from '@/lib/uploads';
@@ -7,8 +9,17 @@ import type { SessionUser } from '@/types/auth';
 
 const PUBLIC_FOLDERS = new Set(['avatars', 'covers']);
 
+const FOLDER_PERMISSION: Record<string, AdminPermission> = {
+  payments: 'payments.manage',
+  kyc: 'verifications.manage',
+  verification: 'verifications.manage',
+  chat: 'chat.view',
+};
+
 async function canAccess(folder: string, url: string, user: SessionUser): Promise<boolean> {
-  const isAdmin = user.role === 'admin';
+  const isAdmin =
+    user.role === 'admin' &&
+    (await adminCan(user.id, FOLDER_PERMISSION[folder] || 'dashboard.view'));
 
   if (folder === 'payments') {
     if (isAdmin) return true;

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireSession } from '@/lib/auth/require-session';
+import { requireAdmin } from '@/lib/auth/admin-access';
 import { query, queryOne, withTransaction } from '@/lib/db';
 import { kycDecisionNotification, notifyArtisan } from '@/lib/notify';
 import type { VerificationDocument } from '@/types/db';
@@ -8,7 +8,7 @@ export async function PATCH(
   request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
-  const { user, error } = await requireSession(['admin']);
+  const { user, error } = await requireAdmin('verifications.manage');
   if (error || !user) return error!;
 
   const { id } = await context.params;

@@ -16,6 +16,7 @@ import {
   formatGhs,
   formatShortDate,
 } from '@/components/admin/AdminUI';
+import { canAccessAdminPath } from '@/lib/admin-permissions';
 
 type StatsPayload = {
   generatedAt?: string;
@@ -72,6 +73,7 @@ export default function AdminDashboardPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [permissions, setPermissions] = useState<string[] | null>(null);
 
   const load = useCallback(async (silent = false) => {
     if (silent) setRefreshing(true);
@@ -97,7 +99,21 @@ export default function AdminDashboardPage() {
     load();
   }, [load]);
 
+  useEffect(() => {
+    fetch('/api/admin/me')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => data && setPermissions(data.permissions || []))
+      .catch(() => undefined);
+  }, []);
+
   const kpis = stats?.kpis;
+
+  const attentionTiles = [
+    { href: '/admin/payments', label: 'Signup payments', count: kpis?.pendingPayments ?? 0, icon: 'BanknotesIcon' },
+    { href: '/admin/verifications', label: 'KYC queue', count: kpis?.pendingKyc ?? 0, icon: 'ShieldCheckIcon' },
+    { href: '/admin/notifications', label: 'Unread alerts', count: kpis?.unreadNotifications ?? 0, icon: 'BellAlertIcon' },
+    { href: '/admin/bookings', label: 'Disputed bookings', count: kpis?.disputedBookings ?? 0, icon: 'ExclamationTriangleIcon' },
+  ].filter((tile) => !permissions || canAccessAdminPath(tile.href, permissions));
 
   return (
     <div className="space-y-6">
@@ -106,34 +122,16 @@ export default function AdminDashboardPage() {
         title="Dashboard"
         description="Live platform health across users, KYC, bookings, escrow, and signup payments."
         actions={
-          <>
-            <Button
-              type="button"
-              variant="outline"
-              loading={refreshing}
-              onClick={() => load(true)}
-              className="!min-h-[40px]"
-            >
-              <Icon name="ArrowPathIcon" size={16} className="mr-1.5" />
-              Refresh
-            </Button>
-            <Link
-              href="/admin/payments"
-              className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest"
-            >
-              <Icon name="BanknotesIcon" size={16} />
-              Payments
-              {kpis && kpis.pendingPayments > 0 ? ` (${kpis.pendingPayments})` : ''}
-            </Link>
-            <Link
-              href="/admin/verifications"
-              className="inline-flex items-center gap-2 border border-border bg-card px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest text-foreground"
-            >
-              <Icon name="ShieldCheckIcon" size={16} />
-              KYC
-              {kpis && kpis.pendingKyc > 0 ? ` (${kpis.pendingKyc})` : ''}
-            </Link>
-          </>
+          <Button
+            type="button"
+            variant="outline"
+            loading={refreshing}
+            onClick={() => load(true)}
+            className="!min-h-[40px]"
+          >
+            <Icon name="ArrowPathIcon" size={16} className="mr-1.5" />
+            Refresh
+          </Button>
         }
       />
 
@@ -147,50 +145,31 @@ export default function AdminDashboardPage() {
         <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl px-4 py-3">{error}</p>
       )}
 
-      <div>
-        <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-2">
-          Needs attention
-        </p>
-        <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-3">
-          <AttentionTile
-            href="/admin/payments"
-            label="Signup payments"
-            count={kpis?.pendingPayments ?? 0}
-            icon="BanknotesIcon"
-          />
-          <AttentionTile
-            href="/admin/verifications"
-            label="KYC queue"
-            count={kpis?.pendingKyc ?? 0}
-            icon="ShieldCheckIcon"
-          />
-          <AttentionTile
-            href="/admin/notifications"
-            label="Unread alerts"
-            count={kpis?.unreadNotifications ?? 0}
-            icon="BellAlertIcon"
-          />
-          <AttentionTile
-            href="/admin/bookings"
-            label="Disputed bookings"
-            count={kpis?.disputedBookings ?? 0}
-            icon="ExclamationTriangleIcon"
-          />
+      {attentionTiles.length > 0 && (
+        <div>
+          <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-2">
+            Needs attention
+          </p>
+          <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-3">
+            {attentionTiles.map((tile) => (
+              <AttentionTile key={tile.href} {...tile} />
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">
         <KpiCard
           label="Total users"
           value={loading ? '…' : String(kpis?.totalUsers ?? 0)}
-          hint={`${kpis?.customers ?? 0} clients · ${kpis?.artisans ?? 0} providers (${kpis?.providersWhoBook ?? 0} also book) · ${kpis?.admins ?? 0} admins`}
+          hint="All accounts · split by type below"
           icon="UsersIcon"
           href="/admin/users"
         />
         <KpiCard
           label="Providers live"
           value={loading ? '…' : String(kpis?.artisansApproved ?? 0)}
-          hint={`${kpis?.artisansPending ?? 0} pending verification`}
+          hint="Approved and bookable by clients"
           icon="WrenchScrewdriverIcon"
           href="/admin/verifications"
         />
@@ -209,23 +188,9 @@ export default function AdminDashboardPage() {
           href="/admin/bookings"
         />
         <KpiCard
-          label="Pending KYC"
-          value={loading ? '…' : String(kpis?.pendingKyc ?? 0)}
-          hint="Identity reviews waiting"
-          icon="IdentificationIcon"
-          href="/admin/verifications"
-        />
-        <KpiCard
-          label="Signup payments"
-          value={loading ? '…' : String(kpis?.pendingPayments ?? 0)}
-          hint="Awaiting confirmation"
-          icon="CreditCardIcon"
-          href="/admin/payments"
-        />
-        <KpiCard
           label="Provider bookings"
           value={loading ? '…' : String(kpis?.providerBookings ?? 0)}
-          hint={`Providers booking providers · ${formatGhs(kpis?.providerBookingsEscrow ?? 0)} paid`}
+          hint={`${kpis?.providersWhoBook ?? 0} providers booking others · ${formatGhs(kpis?.providerBookingsEscrow ?? 0)} paid`}
           icon="ArrowsRightLeftIcon"
           href="/admin/bookings"
         />

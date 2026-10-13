@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
-import { requireSession } from '@/lib/auth/require-session';
+import { requireAdmin } from '@/lib/auth/admin-access';
 import { query, queryOne } from '@/lib/db';
 import type { AdminNotification } from '@/types/db';
 
 export async function GET() {
-  const { user, error } = await requireSession(['admin']);
+  const { user, error } = await requireAdmin('notifications.view');
   if (error || !user) return error!;
 
   const [unreadRow, notifications] = await Promise.all([
@@ -23,7 +23,7 @@ export async function GET() {
 }
 
 export async function PATCH(request: Request) {
-  const { user, error } = await requireSession(['admin']);
+  const { user, error } = await requireAdmin('notifications.view');
   if (error || !user) return error!;
 
   const body = (await request.json()) as { id?: string; markAllRead?: boolean };

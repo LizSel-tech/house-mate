@@ -4,6 +4,7 @@ import {
   getOrCreatePlatformSettings,
   listPaymentMethods,
 } from '@/lib/admin-notify';
+import { isPaystackConfigured } from '@/lib/paystack';
 
 /** Public signup fees + active payment methods. */
 export async function GET() {
@@ -17,5 +18,6 @@ export async function GET() {
       artisan: Number(settings.artisanSignupFee),
     },
     methods,
+    paystackEnabled: isPaystackConfigured(),
   });
 }

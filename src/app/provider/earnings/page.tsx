@@ -5,14 +5,24 @@ import { useEffect, useMemo, useState } from 'react';
 import Icon from '@/components/ui/AppIcon';
 import { Button } from '@/components/ui/Button';
 import Pagination, { usePagination } from '@/components/ui/Pagination';
+import PayoutAccountCard from '@/components/provider/PayoutAccountCard';
 
 type PayoutRow = {
   id: string;
   title: string;
   amount: number;
   escrowStatus: string;
+  payoutStatus: string;
   createdAt?: string;
 };
+
+function rowStatus(row: PayoutRow): { label: string; className: string } {
+  if (row.escrowStatus === 'held') return { label: 'In escrow', className: 'bg-amber-100 text-amber-900' };
+  if (row.payoutStatus === 'paid') return { label: 'Paid out', className: 'bg-green-100 text-green-800' };
+  if (row.payoutStatus === 'pending') return { label: 'Sending', className: 'bg-primary/10 text-primary' };
+  if (row.payoutStatus === 'failed') return { label: 'Payout failed', className: 'bg-red-100 text-red-700' };
+  return { label: 'Released', className: 'bg-green-100 text-green-800' };
+}
 
 function formatGhs(n: number) {
   return `GHS ${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -24,6 +34,8 @@ export default function ProviderEarningsPage() {
   const [jobs, setJobs] = useState(0);
   const [rows, setRows] = useState<PayoutRow[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     const load = async () => {
@@ -51,6 +63,7 @@ export default function ProviderEarningsPage() {
               title: b.service?.title || b.title || 'Job',
               amount: net,
               escrowStatus: b.payment.escrowStatus,
+              payoutStatus: b.payment.payoutStatus || 'none',
               createdAt: b.payment.createdAt || b.createdAt,
             });
           }
@@ -64,7 +77,7 @@ export default function ProviderEarningsPage() {
       }
     };
     load();
-  }, []);
+  }, [reloadKey]);
 
   const sorted = useMemo(
     () =>
@@ -86,7 +99,7 @@ export default function ProviderEarningsPage() {
           </p>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight">Earnings</h1>
           <p className="mt-1.5 text-sm text-muted-foreground max-w-xl">
-            Track held escrow and released payouts (mock Paystack for MVP).
+            Track money held in escrow and payouts sent to your mobile money or bank account.
           </p>
         </div>
         <Link href="/provider/jobs">
@@ -137,6 +150,8 @@ export default function ProviderEarningsPage() {
         ))}
       </div>
 
+      <PayoutAccountCard onSaved={() => setReloadKey((k) => k + 1)} />
+
       <div className="rounded-2xl border border-border bg-card overflow-hidden">
         <div className="px-5 py-4 border-b border-border flex items-center justify-between gap-3">
           <div>
@@ -182,13 +197,9 @@ export default function ProviderEarningsPage() {
                     </td>
                     <td className="px-5 py-3.5">
                       <span
-                        className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${
-                          row.escrowStatus === 'released'
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-amber-100 text-amber-900'
-                        }`}
+                        className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${rowStatus(row).className}`}
                       >
-                        {row.escrowStatus}
+                        {rowStatus(row).label}
                       </span>
                     </td>
                     <td className="px-5 py-3.5 text-sm text-muted-foreground whitespace-nowrap">
@@ -216,7 +227,7 @@ export default function ProviderEarningsPage() {
           {[
             'Customer pays into escrow after you accept the job.',
             'You complete the work and mark it done.',
-            'Customer confirms — Craftviva releases your net amount (minus commission).',
+            'Customer confirms — Craftviva sends your net amount (minus commission) to your payout account.',
           ].map((text, i) => (
             <li key={text} className="flex gap-3">
               <span className="w-8 h-8 rounded-xl bg-primary text-primary-foreground flex items-center justify-center text-sm font-extrabold shrink-0">

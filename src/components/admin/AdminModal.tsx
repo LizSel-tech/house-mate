@@ -58,6 +58,7 @@ export function AdminModal({
   children,
   onClose,
   footer,
+  size = 'md',
 }: {
   open: boolean;
   title: string;
@@ -66,6 +67,7 @@ export function AdminModal({
   children?: ReactNode;
   onClose: () => void;
   footer?: ReactNode;
+  size?: 'md' | 'lg';
 }) {
   useEffect(() => {
     if (!open) return;
@@ -85,7 +87,7 @@ export function AdminModal({
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-center justify-center p-5"
+      className="fixed inset-0 z-[60] overflow-y-auto"
       role="dialog"
       aria-modal="true"
       aria-labelledby="admin-modal-title"
@@ -93,35 +95,41 @@ export function AdminModal({
       <button
         type="button"
         aria-label="Close dialog"
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        className="fixed inset-0 bg-black/50 backdrop-blur-sm"
         onClick={onClose}
       />
-      <div className="relative w-full max-w-md rounded-2xl bg-card border border-border p-6 shadow-xl">
-        <div className="flex items-start gap-3">
-          {icon && (
-            <div className="w-11 h-11 rounded-2xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
-              <Icon name={icon} size={22} />
-            </div>
-          )}
-          <div className="min-w-0 flex-1">
-            <h2 id="admin-modal-title" className="text-xl font-extrabold text-foreground">
-              {title}
-            </h2>
-            {description && (
-              <p className="mt-1.5 text-sm text-muted-foreground leading-relaxed">{description}</p>
+      <div className="relative flex min-h-full items-center justify-center p-5 pointer-events-none">
+        <div
+          className={`pointer-events-auto relative w-full ${
+            size === 'lg' ? 'max-w-2xl' : 'max-w-md'
+          } rounded-2xl bg-card border border-border p-6 shadow-xl`}
+        >
+          <div className="flex items-start gap-3">
+            {icon && (
+              <div className="w-11 h-11 rounded-2xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                <Icon name={icon} size={22} />
+              </div>
             )}
+            <div className="min-w-0 flex-1">
+              <h2 id="admin-modal-title" className="text-xl font-extrabold text-foreground">
+                {title}
+              </h2>
+              {description && (
+                <p className="mt-1.5 text-sm text-muted-foreground leading-relaxed">{description}</p>
+              )}
+            </div>
+            <button
+              type="button"
+              aria-label="Close"
+              onClick={onClose}
+              className="w-8 h-8 rounded-full hover:bg-muted flex items-center justify-center text-muted-foreground shrink-0"
+            >
+              <Icon name="XMarkIcon" size={18} />
+            </button>
           </div>
-          <button
-            type="button"
-            aria-label="Close"
-            onClick={onClose}
-            className="w-8 h-8 rounded-full hover:bg-muted flex items-center justify-center text-muted-foreground shrink-0"
-          >
-            <Icon name="XMarkIcon" size={18} />
-          </button>
+          {children && <div className="mt-5">{children}</div>}
+          {footer && <div className="mt-6 flex flex-col-reverse sm:flex-row gap-3">{footer}</div>}
         </div>
-        {children && <div className="mt-5">{children}</div>}
-        {footer && <div className="mt-6 flex flex-col-reverse sm:flex-row gap-3">{footer}</div>}
       </div>
     </div>
   );
