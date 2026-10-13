@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 import { requireSession } from '@/lib/auth/require-session';
 import { queryOne } from '@/lib/db';
 import { markBookingPaid } from '@/lib/payments';
@@ -35,6 +36,7 @@ export async function POST(request: Request) {
       message: 'Payment received and held in escrow. Funds are released when you confirm completion.',
     });
   } catch (err) {
+    await logger.error('paystack.booking', 'Verify payment failed', err, { reference });
     const message = err instanceof PaystackError ? err.message : 'Could not verify the payment.';
     return NextResponse.json({ error: message }, { status: 502 });
   }

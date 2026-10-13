@@ -5,6 +5,7 @@ import { verifyOtp } from '@/lib/auth/otp';
 import { setSession } from '@/lib/auth/session';
 import { toSessionUser } from '@/lib/auth/users';
 import { isDatabaseConfigured, queryOne } from '@/lib/db';
+import { logger } from '@/lib/logger';
 import type { SignupPayment, User } from '@/types/db';
 
 /**
@@ -121,7 +122,7 @@ export async function POST(request: Request) {
       persistence: 'postgres',
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unable to log in.';
-    return NextResponse.json({ error: message }, { status: 500 });
+    await logger.error('auth.login', 'Login failed', err);
+    return NextResponse.json({ error: 'Unable to log in right now. Please try again.' }, { status: 500 });
   }
 }

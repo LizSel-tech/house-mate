@@ -8,6 +8,7 @@ import {
   toPesewas,
   type PaystackTransactionData,
 } from '@/lib/paystack';
+import { logger } from '@/lib/logger';
 import { welcomeActivatedUser } from '@/lib/signup';
 import type { PoolClient } from 'pg';
 import type { Payment, PaystackTransaction, PlatformSetting, User } from '@/types/db';
@@ -282,6 +283,7 @@ export type PayoutResult = {
 };
 
 async function failPayout(row: PayoutRow, amount: number, error: string, notifyProvider: boolean) {
+  await logger.warn('paystack.payout', 'Payout failed', { paymentId: row.id, bookingId: row.bookingId, amount, reason: error });
   await query(
     `UPDATE payments SET payout_status = 'failed', payout_error = $2 WHERE id = $1`,
     [row.id, error],

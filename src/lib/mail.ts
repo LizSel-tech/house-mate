@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import { logger } from '@/lib/logger';
 
 function env(name: string): string | undefined {
   const value = process.env[name]?.trim();
@@ -34,13 +35,28 @@ function createTransport() {
   const encryption = (env('MAIL_ENCRYPTION') || '').toLowerCase();
   const implicitTls = encryption === 'ssl' || port === 465;
 
-  return nodemailer.createTransport({
-    host,
-    port,
-    secure: implicitTls,
-    auth: user && pass ? { user, pass } : undefined,
-    tls: { rejectUnauthorized: false },
-  });
+  return {
+    transport: nodemailer.createTransport({
+      host,
+      port,
+      secure: implicitTls,
+      requireTLS: encryption === 'tls' && !implicitTls,
+      auth: user && pass ? { user, pass } : undefined,
+      tls: { rejectUnauthorized: false },
+      connectionTimeout: 15_000,
+      greetingTimeout: 10_000,
+      socketTimeout: 20_000,
+    }),
+    settings: { host, port, secure: implicitTls, encryption: encryption || 'none' },
+  };
+}
+
+/** Shown to users when the mail server can't be reached; the real cause goes to the log. */
+export class MailDeliveryError extends Error {
+  constructor() {
+    super('We couldn’t send the email right now. Please try again in a few minutes.');
+    this.name = 'MailDeliveryError';
+  }
 }
 
 function fromHeader(): string {
@@ -106,14 +122,28 @@ export async function sendMail(input: {
     throw new Error('Mail is not configured. Set MAIL_HOST and MAIL_FROM_ADDRESS.');
   }
 
-  const transport = createTransport();
-  await transport.sendMail({
-    from: fromHeader(),
-    to: input.to,
-    subject: input.subject,
-    text: input.text,
-    html: input.html,
-  });
+  const { transport, settings } = createTransport();
+  const started = Date.now();
+  try {
+    await transport.sendMail({
+      from: fromHeader(),
+      to: input.to,
+      subject: input.subject,
+      text: input.text,
+      html: input.html,
+    });
+    void logger.info('mail', 'Email sent', { subject: input.subject, to: input.to, ms: Date.now() - started });
+  } catch (err) {
+    await logger.error('mail', 'Email delivery failed', err, {
+      subject: input.subject,
+      to: input.to,
+      ...settings,
+      ms: Date.now() - started,
+    });
+    throw new MailDeliveryError();
+  } finally {
+    transport.close();
+  }
 }
 
 export function siteUrl(): string {

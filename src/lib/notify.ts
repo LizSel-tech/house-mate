@@ -1,4 +1,5 @@
 import { query, queryOne } from '@/lib/db';
+import { logger } from '@/lib/logger';
 
 export type UserNotificationInput = {
   type: string;
@@ -33,7 +34,7 @@ export async function notifyUser(
       [userId, input.type, input.title, input.body, input.href || null],
     );
   } catch (err) {
-    console.error('notifyUser failed', err);
+    void logger.error('notify', 'notifyUser failed', err);
   }
 }
 
@@ -90,7 +91,7 @@ export async function getBookingParties(bookingId: string): Promise<BookingParti
     );
     return row ? { ...row, customerBookingsHref: customerBookingsHref(row.customerRole) } : null;
   } catch (err) {
-    console.error('getBookingParties failed', err);
+    void logger.error('notify', 'getBookingParties failed', err);
     return null;
   }
 }
@@ -104,6 +105,6 @@ export async function notifyArtisan(artisanId: string | null | undefined, input:
     );
     await notifyUser(row?.userId, input);
   } catch (err) {
-    console.error('notifyArtisan failed', err);
+    void logger.error('notify', 'notifyArtisan failed', err);
   }
 }

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 import { requireSession } from '@/lib/auth/require-session';
 import { query, queryOne } from '@/lib/db';
 import { releasePayout } from '@/lib/payments';
@@ -111,6 +112,7 @@ export async function PUT(request: Request) {
       recipientCode = recipient.recipient_code;
       resolvedName = recipient.details?.account_name?.trim() || accountName;
     } catch (err) {
+      await logger.error('paystack.payout-account', 'Create transfer recipient failed', err, { userId: user.id });
       const message = err instanceof PaystackError ? err.message : 'Could not verify this account.';
       return NextResponse.json({ error: `Paystack: ${message}` }, { status: 400 });
     }

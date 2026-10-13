@@ -1,5 +1,6 @@
 import { randomBytes } from 'crypto';
 import { NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 import { requireSession } from '@/lib/auth/require-session';
 import { query, queryDataOne, queryOne } from '@/lib/db';
 import {
@@ -86,6 +87,7 @@ export async function POST(
       `UPDATE paystack_transactions SET status = 'failed', gateway_response = $2, updated_at = now() WHERE reference = $1`,
       [reference, err instanceof Error ? err.message : 'initialize failed'],
     );
+    await logger.error('paystack.booking', 'Initialize transaction failed', err, { bookingId: id });
     const message = err instanceof PaystackError ? err.message : 'Could not start the payment.';
     return NextResponse.json({ error: `Paystack: ${message}` }, { status: 502 });
   }

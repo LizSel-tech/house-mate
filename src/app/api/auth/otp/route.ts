@@ -3,6 +3,8 @@ import { isDemoAdminEnabled } from '@/lib/auth/constants';
 import { issueOtpToUser } from '@/lib/auth/otp';
 import { normalizePhone } from '@/lib/auth/session-token';
 import { isDatabaseConfigured, queryOne } from '@/lib/db';
+import { logger } from '@/lib/logger';
+import { MailDeliveryError } from '@/lib/mail';
 import type { SignupPayment, User } from '@/types/db';
 
 /**
@@ -103,7 +105,10 @@ export async function POST(request: Request) {
       ...(result.devCode ? { devCode: result.devCode } : {}),
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unable to send OTP.';
-    return NextResponse.json({ error: message }, { status: 500 });
+    if (err instanceof MailDeliveryError) {
+      return NextResponse.json({ error: 'We couldn’t send your code right now. Please try again in a few minutes.' }, { status: 503 });
+    }
+    await logger.error('auth.otp', 'OTP request failed', err);
+    return NextResponse.json({ error: 'Unable to send your code. Please try again.' }, { status: 500 });
   }
 }

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 import { queryOne } from '@/lib/db';
 import { markSignupPaid } from '@/lib/payments';
 import { PaystackError, verifyTransaction } from '@/lib/paystack';
@@ -53,6 +54,7 @@ export async function POST(request: Request) {
         : 'Payment received — your account is active. We’ve emailed your sign-in code.',
     });
   } catch (err) {
+    await logger.error('paystack.signup', 'Verify payment failed', err, { reference });
     const message = err instanceof PaystackError ? err.message : 'Could not verify the payment.';
     return NextResponse.json({ error: message }, { status: 502 });
   }

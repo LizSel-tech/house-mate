@@ -4,8 +4,11 @@
   "version": "0.1.0",
   "scripts": {
     "dev": "next dev",
+    "dev:log": "mkdir -p logs && next dev 2>&1 | tee -a logs/server.log",
     "build": "next build",
     "start": "next start",
+    "start:log": "mkdir -p logs && next start 2>&1 | tee -a logs/server.log",
+    "logs": "mkdir -p logs && touch logs/app.log && tail -n 50 -f logs/app.log",
     "lint": "next lint",
     "db:migrate": "tsx db/migrate.ts"
   },

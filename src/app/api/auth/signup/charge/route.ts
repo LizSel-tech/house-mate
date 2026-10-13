@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 import { queryOne } from '@/lib/db';
 import { PaystackError, submitChargeOtp } from '@/lib/paystack';
 import type { PaystackTransaction } from '@/types/db';
@@ -31,6 +32,7 @@ export async function POST(request: Request) {
     }
     return NextResponse.json({ ok: true, status: charge.status, displayText: charge.display_text || null });
   } catch (err) {
+    await logger.error('paystack.signup', 'Submit charge code failed', err, { reference });
     const message = err instanceof PaystackError ? err.message : 'Could not submit the code.';
     return NextResponse.json({ error: message }, { status: 502 });
   }

@@ -4,6 +4,7 @@ import type { SignupPayload } from '@/types/auth';
 import { normalizePhone } from '@/lib/auth/session-token';
 import { notifyAdmin, getOrCreatePlatformSettings } from '@/lib/admin-notify';
 import { isDatabaseConfigured, query, queryOne, withTransaction } from '@/lib/db';
+import { logger } from '@/lib/logger';
 import { isMomoProvider, maskMomo, normalizeGhanaMomo, type MomoProvider } from '@/lib/momo';
 import {
   PaystackError,
@@ -219,6 +220,7 @@ export async function POST(request: Request) {
           `UPDATE paystack_transactions SET status = 'failed', gateway_response = $2, updated_at = now() WHERE reference = $1`,
           [paystackRef, err instanceof Error ? err.message : 'Initialize failed'],
         );
+        await logger.error('paystack.signup', 'Initialize transaction failed', err, { reference: paystackRef });
         const message = err instanceof PaystackError ? err.message : 'Could not start the payment.';
         return NextResponse.json({ error: message }, { status: 502 });
       }
@@ -242,6 +244,7 @@ export async function POST(request: Request) {
         });
         if (charge.status === 'failed') {
           const reason = charge.message || charge.gateway_response || 'The mobile money network declined the request.';
+          void logger.warn('paystack.signup', 'Mobile money charge declined', { reference: paystackRef, reason });
           await query(
             `UPDATE paystack_transactions SET status = 'failed', gateway_response = $2, updated_at = now() WHERE reference = $1`,
             [paystackRef, reason],
@@ -263,6 +266,10 @@ export async function POST(request: Request) {
           `UPDATE paystack_transactions SET status = 'failed', gateway_response = $2, updated_at = now() WHERE reference = $1`,
           [paystackRef, err instanceof Error ? err.message : 'Charge failed'],
         );
+        await logger.error('paystack.signup', 'Mobile money charge failed', err, {
+          reference: paystackRef,
+          provider: momoProvider,
+        });
         const message = err instanceof PaystackError ? err.message : 'Could not send the payment prompt.';
         return NextResponse.json({ error: message }, { status: 502 });
       }
@@ -294,7 +301,7 @@ export async function POST(request: Request) {
       persistence: 'postgres',
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unable to sign up.';
-    return NextResponse.json({ error: message }, { status: 500 });
+    await logger.error('auth.signup', 'Signup failed', err);
+    return NextResponse.json({ error: 'Unable to complete signup right now. Please try again.' }, { status: 500 });
   }
 }
